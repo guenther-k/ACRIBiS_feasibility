@@ -1,4 +1,4 @@
-usführensource("config.R")
+#source("config.R")
 source("install_R_packages.R")
 
 #source config
