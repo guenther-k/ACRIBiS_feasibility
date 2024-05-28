@@ -163,7 +163,7 @@ medications_all <- paste(c(medications_betablockers, medications_acei_arb, medic
 # Patients
 #create the search body which lists all the found Patient IDs and restricts on specified parameters (birthdate)
 #use "_id" as global FHIR-Search parameter in patient resource
-body_patient <- fhir_body(content = list("_id" = paste(patient_ids_with_conditions, collapse = ","), "birthdate" = "le2005"))
+body_patient <- fhir_body(content = list("_id" = paste(patient_ids_with_conditions, collapse = ","), "birthdate" = "le2006-07-01"))
 #create request for specified URL and Resource
 request_patients <- fhir_url(url = diz_url, resource = "Patient")
 #Execute the fhir search using the above defined request and body
