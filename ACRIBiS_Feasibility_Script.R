@@ -190,14 +190,76 @@ body_medicationStatement <- fhir_body(content = list("subject" = paste(patient_i
 request_medicationStatements <- fhir_url(url = diz_url, resource = "MedicationStatement")
 bundles_medicationStatement <- fhir_search(request = request_medicationStatements)
 #crack immediately to provide ids for medication-search
-message("Cracking ", length(bundles_medicationStatement), " MedicationStatement Bundles.\n")
-table_medicationStatements <- fhir_crack(bundles = bundles_medicationStatement, design = tabledescription_medicationStatement, verbose = 1)
 
+#Cracking empty bundles results in script termination; therefore bundles have to be checked for entries
+#Data Availability in Bundles is based on entries; if there is no corresponding data in FHIR Server, bundles will be present but without entries
+#Function to check if a FHIR bundle is empty
+is_fhir_bundle_empty <- function(file_path) {
+  #Read the XML file
+  fhir_bundle <- read_xml(file_path)
+  
+  #Check if the 'entry' node is present and has any entries
+  entries <- xml_find_all(fhir_bundle, "//entry")
+  if (length(entries) > 0) {
+    return(FALSE)  # Bundle is not empty
+  } else {
+    return(TRUE)   # Bundle is empty
+  }
+}
+
+#Check bundles that are saved as XML files in the respective folder (unclear if check directly in R is possible)
+#Function to check all XML files in a folder
+check_fhir_bundles_in_folder <- function(folder_path) {
+  # List all XML files in the folder
+  xml_files <- list.files(folder_path, pattern = "\\.xml$", full.names = TRUE)
+  
+  # Initialize a flag for early termination
+  non_empty_found <- FALSE
+  
+  # Check each file
+  for (file in xml_files) {
+    if (!is_fhir_bundle_empty(file)) {
+      cat(file, "is not empty.\n")
+      non_empty_found <- TRUE
+      return(non_empty_found)
+      break
+    }
+  }
+  
+  if (!non_empty_found) {
+    cat("All bundles are empty.\n")
+    return(non_empty_found)
+  }
+}
+
+
+if(check_fhir_bundles_in_folder("XML_Bundles/bundles_medicationStatement") == FALSE) {
+  message("The bundle you are trying to crack is empty. This will result in an error. Therefore the bundle will not be cracked.")
+  #create list of medications in the medicationStatements of the Patients
+  medicationStatement_ids <- NA
+} else {
+    message("Cracking ", length(bundles_medicationStatement), " MedicationStatement Bundles.\n")
+    table_medicationStatements <- fhir_crack(bundles = bundles_medicationStatement, design = tabledescription_medicationStatement, verbose = 1)
+    #create list of medications in the medicationStatements of the Patients
+    medicationStatement_ids <- sub("Medication/", "", table_medicationStatements$medicationStatement_medication_reference)
+}
 
 # Medication
-body_medication <- fhir_body(content = list("_id" = paste(medicationStatement_ids, collapse = ","), "code" = medications_all))
-request_medications <- fhir_url(url = diz_url, resource = "Medication")
-bundles_medication <- fhir_search(request = request_medications, body = body_medication)
+#create function to check whether IDs could be retreived
+contains_ids <- function(vec) {
+  # Check if the vector is not empty and contains non-NA values
+  return(length(vec) > 0 && any(!is.na(vec)))
+}
+
+
+if(contains_ids(medicationStatement_ids)) {
+  body_medication <- fhir_body(content = list("_id" = paste(medicationStatement_ids, collapse = ","), "code" = medications_all))
+  request_medications <- fhir_url(url = diz_url, resource = "Medication")
+  bundles_medication <- fhir_search(request = request_medications, body = body_medication)
+} else {
+    message("There are no entries in the Resource MedicationStatements, therefore the corresponding Medications could not be retrieved")
+}
+
 
 # Modul Fall für Einrichtungskontakt: nicht möglich, da Abteilungsschlüssel nur in Beschreibung aber nicht in FHIR-Profil hinterlegt ist
 
@@ -215,7 +277,7 @@ fhir_save(bundles = bundles_medication, directory = "XML_Bundles/bundles_medicat
 
 # Load Bundles ------------------------------------------------------------
 # (after bundles are saved)
-message("Loading  saved all Bundles.\n")
+message("Loading saved Bundles.\n")
 bundles_patient <- fhir_load(directory = "XML_Bundles/bundles_patient")
 bundles_condition <- fhir_load(directory = "XML_Bundles/bundles_condition")
 bundles_observation <- fhir_load(directory = "XML_Bundles/bundles_observation")
@@ -225,8 +287,13 @@ bundles_medicationStatement <- fhir_load(directory = "XML_Bundles/bundles_medica
 
 # Crack Into Tables -------------------------------------------------------
 #crack bundles into table
+
+
 message("Cracking ", length(bundles_patient), " Patient Bundles.\n")
 table_patients <- fhir_crack(bundles = bundles_patient, design = tabledescription_patient, verbose = 1)
+
+
+
 message("Cracking ", length(bundles_condition), " Condition Bundles.\n")
 table_conditions <- fhir_crack(bundles = bundles_condition, design = tabledescription_condition, verbose = 1)
 message("Cracking ", length(bundles_observation), " Observation Bundles.\n")
@@ -269,9 +336,6 @@ convert_date_to_year <- function(birthdate) {
 table_patients$patient_birthdate <- sapply(table_patients$patient_birthdate, convert_date_to_year)
 #rename column for clarity
 colnames(table_patients)[colnames(table_patients) == "patient_birthdate"] <- "patient_birthyear"
-
-#create list of medications in the medicationStatements of the Patients
-medicationStatement_ids <- sub("Medication/", "", table_medicationStatements$medicationStatement_medication_reference)
 
 #values must be changed to numeric to show distribution
 table_observations$observation_value_num <- as.numeric(table_observations$observation_value)

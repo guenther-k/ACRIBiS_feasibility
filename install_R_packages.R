@@ -4,9 +4,10 @@
 # install.packages("anytime")
 # install.packages("ICD10gm")
 # install.packages("knitr")
+# install.packages("xml2")
 
 
-required_packages <- c("fhircrackr", "dplyr", "sqldf", "anytime", "ICD10gm", "knitr")
+required_packages <- c("fhircrackr", "dplyr", "sqldf", "anytime", "ICD10gm", "knitr", "xml2")
 
 for(package in required_packages){
   
@@ -23,3 +24,4 @@ library(sqldf)
 library(anytime)
 library(ICD10gm)
 library(knitr)
+library(xml2)
