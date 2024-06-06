@@ -189,6 +189,8 @@ bundles_observation <- fhir_search(request = request_observations, body = body_o
 body_medicationStatement <- fhir_body(content = list("subject" = paste(patient_ids_with_conditions, collapse = ","), "medication" = medications_all))
 request_medicationStatements <- fhir_url(url = diz_url, resource = "MedicationStatement")
 bundles_medicationStatement <- fhir_search(request = request_medicationStatements)
+#save for later loading, and to check for entries
+fhir_save(bundles = bundles_medicationStatement, directory = "XML_Bundles/bundles_medicationStatement")
 #crack immediately to provide ids for medication-search
 
 #Cracking empty bundles results in script termination; therefore bundles have to be checked for entries
@@ -265,13 +267,13 @@ if(contains_ids(medicationStatement_ids)) {
 
 
 # Save Bundles ------------------------------------------------------------
-# (only after first download)
+# (only after first download) move to FHIR Search section (so far only medicationStatement)
 #save and load to circumvent long download times for bundles; comment and uncomment with line above (fhir_search) as necessary
 message("Saving  Bundles.\n")
 fhir_save(bundles = bundles_patient, directory = "XML_Bundles/bundles_patient")
 fhir_save(bundles = bundles_condition, directory = "XML_Bundles/bundles_condition")
 fhir_save(bundles = bundles_observation, directory = "XML_Bundles/bundles_observation")
-fhir_save(bundles = bundles_medicationStatement, directory = "XML_Bundles/bundles_medicationStatement")
+
 fhir_save(bundles = bundles_medication, directory = "XML_Bundles/bundles_medication")
 
 
