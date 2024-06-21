@@ -193,67 +193,19 @@ bundles_medicationStatement <- fhir_search(request = request_medicationStatement
 fhir_save(bundles = bundles_medicationStatement, directory = "XML_Bundles/bundles_medicationStatement")
 #crack immediately to provide ids for medication-search
 
-#Cracking empty bundles results in script termination; therefore bundles have to be checked for entries
-#Data Availability in Bundles is based on entries; if there is no corresponding data in FHIR Server, bundles will be present but without entries
-#Function to check if a FHIR bundle is empty
-is_fhir_bundle_empty <- function(file_path) {
-  #Read the XML file
-  fhir_bundle <- read_xml(file_path)
-  
-  #Check if the 'entry' node is present and has any entries
-  entries <- xml_find_all(fhir_bundle, "//entry")
-  if (length(entries) > 0) {
-    return(FALSE)  # Bundle is not empty
-  } else {
-    return(TRUE)   # Bundle is empty
-  }
-}
-
-#Check bundles that are saved as XML files in the respective folder (unclear if check directly in R is possible)
-#Function to check all XML files in a folder
-check_fhir_bundles_in_folder <- function(folder_path) {
-  # List all XML files in the folder
-  xml_files <- list.files(folder_path, pattern = "\\.xml$", full.names = TRUE)
-  
-  # Initialize a flag for early termination
-  non_empty_found <- FALSE
-  
-  # Check each file
-  for (file in xml_files) {
-    if (!is_fhir_bundle_empty(file)) {
-      cat(file, "is not empty.\n")
-      non_empty_found <- TRUE
-      return(non_empty_found)
-      break
-    }
-  }
-  
-  if (!non_empty_found) {
-    cat("All bundles are empty.\n")
-    return(non_empty_found)
-  }
-}
-
 
 if(check_fhir_bundles_in_folder("XML_Bundles/bundles_medicationStatement") == FALSE) {
   message("The bundle you are trying to crack is empty. This will result in an error. Therefore the bundle will not be cracked.")
   #create list of medications in the medicationStatements of the Patients
   medicationStatement_ids <- NA
 } else {
-    message("Cracking ", length(bundles_medicationStatement), " MedicationStatement Bundles.\n")
+    message("Cracking ", length(bundles_medicationStatement), " medicationStatement Bundles.\n")
     table_medicationStatements <- fhir_crack(bundles = bundles_medicationStatement, design = tabledescription_medicationStatement, verbose = 1)
     #create list of medications in the medicationStatements of the Patients
     medicationStatement_ids <- sub("Medication/", "", table_medicationStatements$medicationStatement_medication_reference)
 }
 
 # Medication
-#create function to check whether IDs could be retreived
-contains_ids <- function(vec) {
-  # Check if the vector is not empty and contains non-NA values
-  return(length(vec) > 0 && any(!is.na(vec)))
-}
-
-
 if(contains_ids(medicationStatement_ids)) {
   body_medication <- fhir_body(content = list("_id" = paste(medicationStatement_ids, collapse = ","), "code" = medications_all))
   request_medications <- fhir_url(url = diz_url, resource = "Medication")
@@ -273,7 +225,7 @@ message("Saving  Bundles.\n")
 fhir_save(bundles = bundles_patient, directory = "XML_Bundles/bundles_patient")
 fhir_save(bundles = bundles_condition, directory = "XML_Bundles/bundles_condition")
 fhir_save(bundles = bundles_observation, directory = "XML_Bundles/bundles_observation")
-
+#medicationStaements is cracked earlier to retrieve IDs for download of Medication data
 fhir_save(bundles = bundles_medication, directory = "XML_Bundles/bundles_medication")
 
 
@@ -290,21 +242,37 @@ bundles_medicationStatement <- fhir_load(directory = "XML_Bundles/bundles_medica
 # Crack Into Tables -------------------------------------------------------
 #crack bundles into table
 
-
+if(check_fhir_bundles_in_folder("XML_Bundles/bundles_patient") == FALSE) {
+  message("The bundle you are trying to crack is empty. This will result in an error. Therefore the bundle will not be cracked.")
+} else {
 message("Cracking ", length(bundles_patient), " Patient Bundles.\n")
 table_patients <- fhir_crack(bundles = bundles_patient, design = tabledescription_patient, verbose = 1)
+  }
 
-
-
+if(check_fhir_bundles_in_folder("XML_Bundles/bundles_condition") == FALSE) {
+  message("The bundle you are trying to crack is empty. This will result in an error. Therefore the bundle will not be cracked.")
+} else {
 message("Cracking ", length(bundles_condition), " Condition Bundles.\n")
 table_conditions <- fhir_crack(bundles = bundles_condition, design = tabledescription_condition, verbose = 1)
+}
+
+if(check_fhir_bundles_in_folder("XML_Bundles/bundles_observation") == FALSE) {
+  message("The bundle you are trying to crack is empty. This will result in an error. Therefore the bundle will not be cracked.")
+} else {
 message("Cracking ", length(bundles_observation), " Observation Bundles.\n")
 table_observations <- fhir_crack(bundles = bundles_observation, design = tabledescription_observation, verbose = 1)
+}
+
 #cracking above, to provide ids for medications
 # message("Cracking ", length(bundles_medicationStatement), " MedicationStatement Bundles.\n")
 # table_medicationStatements <- fhir_crack(bundles = bundles_medicationStatement, design = tabledescription_medicationStatement, verbose = 1)
+
+if(check_fhir_bundles_in_folder("XML_Bundles/bundles_medication") == FALSE) {
+  message("The bundle you are trying to crack is empty. This will result in an error. Therefore the bundle will not be cracked.")
+} else {
 message("Cracking ", length(bundles_medication), " Medication Bundles.\n")
 table_medications <- fhir_crack(bundles = bundles_medication, design = tabledescription_medication, verbose = 1)
+}
 
 
 if(length(table_patients$patient_identifier)==0){
@@ -314,31 +282,47 @@ if(length(table_patients$patient_identifier)==0){
 
 
 # Data Cleaning -----------------------------------------------------------
-message("Cleaning Data.\n")
+message("Cleaning the Data.\n")
 
+## Consider the case if only birthyear is supplied
 #Birthyear
 convert_date_to_year <- function(birthdate) {
-  if (is.integer(birthdate)) {
-    #Keep integer years unchanged
-    return(birthdate)  
+  # Check if the input is a Date object
+  if (inherits(birthdate, "Date")) {
+    year <- as.numeric(format(birthdate, "%Y"))
   } else if (is.character(birthdate)) {
-    if (grepl("^\\d{4}$", birthdate)) {
-      #Convert 4-digit strings to integers
-      return(as.integer(birthdate))  
-    } else if (grepl("^\\d{4}-\\d{2}-\\d{2}$", birthdate)) {
-      #Extract year from date strings
-      return(as.integer(substr(birthdate, 1, 4)))  
+    # Check if the input contains a full date
+    if (grepl("-", birthdate)) {
+      # Extract the year from the full date
+      year <- as.numeric(format(as.Date(birthdate, "%Y-%m-%d"), "%Y"))
+    } else {
+      # If it's just a year, convert it to numeric
+      year <- as.numeric(birthdate)
     }
+  } else if (is.numeric(birthdate)) {
+    # If the input is already numeric, assume it's a year
+    year <- birthdate
+  } else {
+    #Return NA for any other cases
+    stop("Invalid birthdate format")
+    message("The provided Format for Patient Birthday/Birthyear does not match the expected Format (String or Integer)")
+    return(NA)
   }
-  #Return NA for any other cases
-  message("The provided Format for Patient Birthday/Birthyear does not match the expected Format (String or Integer)")
-  return(NA)  
+  return(year)
 }
+
+if(check_fhir_bundles_in_folder("XML_Bundles/bundles_patient") == FALSE) {
+  message("The action you trying to carry out is not possible due to empty resources. Executing the action would result in an error. Therefore the action will not be carried out.")
+} else {
 #apply function to date coulumn
 table_patients$patient_birthdate <- sapply(table_patients$patient_birthdate, convert_date_to_year)
 #rename column for clarity
 colnames(table_patients)[colnames(table_patients) == "patient_birthdate"] <- "patient_birthyear"
+}
 
+if(check_fhir_bundles_in_folder("XML_Bundles/bundles_observation") == FALSE | check_fhir_bundles_in_folder("XML_Bundles/bundles_condition") == FALSE) {
+  message("The action you trying to carry out is not possible due to empty resources. Executing the action would result in an error. Therefore the action will not be carried out.")
+} else {
 #values must be changed to numeric to show distribution
 table_observations$observation_value_num <- as.numeric(table_observations$observation_value)
 
@@ -346,6 +330,7 @@ table_observations$observation_value_num <- as.numeric(table_observations$observ
 colnames(table_conditions) [colnames(table_conditions) == "condition_recordedDate"] <- "condition_recordedDate_char"
 colnames(table_conditions) [colnames(table_conditions) == "condition_onsetDate"] <- "condition_onsetDate_char"
 colnames(table_observations) [colnames(table_observations) == "observation_datetime"] <- "observation_datetime_char"
+
 
 #remove time zone term
 table_conditions$condition_recordedDate_char <- sub("\\+.*", "", table_conditions$condition_recordedDate_char)
@@ -384,22 +369,45 @@ colnames(table_observations)[colnames(table_observations) == "COMPONENT"] <- "ob
 
 #re-order table columns for improved readability
 #table_observations <- select(table_observations, "observation_identifier", "observation_code", "observation_LOINC_term", "observation_value", "observation_value_num", "observation_unit", "observation_datetime_char", "observation_recordedDate", "observation_recordedDateTime", "observation_subject")
-
+}
 
 
 # Link Resources ----------------------------------------------------------
 message("Combining Tables.\n")
+
+if(check_fhir_bundles_in_folder("XML_Bundles/bundles_Patient") == FALSE | check_fhir_bundles_in_folder("XML_Bundles/bundles_Condition") == FALSE) {
+  message("One of the tables you are trying to merge does not exist (Possibly due to empty resources). Therefore the merge-statement will not be carried out.")
+} else {
 #add conditions to the patients where available
 table_pat_cond <- merge(table_patients, table_conditions, by.x = "patient_identifier", by.y = "condition_subject", all.x = TRUE)
+}
+
+if(check_fhir_bundles_in_folder("XML_Bundles/bundles_Observation") == FALSE) {
+  message("One of the tables you are trying to merge does not exist (Possibly due to empty resources). Therefore the merge-statement will not be carried out.")
+} else {
 #add observations to the patients and conditions where available
 table_pat_cond_obs <- merge(table_pat_cond, table_observations, by.x = "patient_identifier", by.y = "observation_subject", all.x = TRUE)
+}
+
+if(check_fhir_bundles_in_folder("XML_Bundles/bundles_MedicationStatement") == FALSE) {
+  message("One of the tables you are trying to merge does not exist (Possibly due to empty resources). Therefore the merge-statement will not be carried out.")
+} else {
 #combine medication statement with the respective medications
 table_meds <- merge(table_medicationStatements, table_medications, by.x = "medicationStatement_medication_reference", by.y = "medication_identifier", all.x = TRUE)
+}
+
+if(check_fhir_bundles_in_folder("XML_Bundles/bundles_medicationStatement") == FALSE) {
+  message("One of the tables you are trying to merge does not exist (Possibly due to empty resources). Therefore the merge-statement will not be carried out.")
+} else {
 #add medications to patients and conditions and observations
 table_pat_cond_obs_med <- merge(table_pat_cond_obs, table_meds, by.x = "patient_identifier", by.y = "medicationStatement_subject", all.x = TRUE)
 table_all <- table_pat_cond_obs_med
 rm(table_pat_cond, table_pat_cond_obs, table_pat_cond_obs_med)
+}
 
+if(is.null(table_all) == TRUE) {
+  message("One of the tables you are trying to merge does not exist (Possibly due to empty resources). Therefore the merge-statement will not be carried out.")
+} else {
 #add column for age, rounded to 1 decimal place to not lose information on underage patients
 #table_all$patient_age <- as.numeric(round(difftime(Sys.Date(), table_all$patient_birthdate, units = "days") / 365.25, 1))
 table_all$patient_age <- as.numeric(gsub("-\\d{2}-\\d{2}$", "", Sys.Date())) - table_all$patient_birthyear
@@ -627,3 +635,5 @@ write.csv(crosstabs_eligibility_availability_chadsvasc, "Output/eligibility_avai
 #description of populations that eligible for each risk score (age, gender, maybe condition/observation?)?
 #additional variables for description of observation, condition, medication?
 message("End.\n")
+
+}
