@@ -45,13 +45,15 @@ tabledescription_observation <- fhir_table_description(
            observation_datetime    = "effectiveDateTime"
   )
 )
-## MedicationStatement
-tabledescription_medicationStatement <- fhir_table_description(
-  resource = "MedicationStatement",
-  cols = c(medicationStatement_identifier            = "id",
-           medicationStatement_subject               = "subject/reference", 
-           medicationStatement_status                = "status",
-           medicationStatement_medication_reference  = "medicationReference/reference"
+## medicationAdministration
+tabledescription_medicationAdministration <- fhir_table_description(
+  resource = "medicationAdministration",
+  cols = c(medicationAdministration_identifier            = "id",
+           medicationAdministration_subject               = "subject/reference", 
+           medicationAdministration_status                = "status",
+           medicationAdministration_medication_reference  = "medicationReference/reference",
+           medicationAdministration_effective_dateTime    = "effective/effectivedateTime",
+           medicationAdministration_effective_period      = "effective/effectivePeriod"
   )
 )
 ## Medication
@@ -125,7 +127,7 @@ LOINC_codes_all <- paste (c(LOINC_codes_height, LOINC_codes_weight, LOINC_codes_
                             LOINC_codes_hscrp, LOINC_codes_crp, LOINC_codes_bmi), collapse = ",")
 
 
-# Required Codes for MedicationStatement / Medication
+# Required Codes for medicationAdministration / Medication
 medications_betablockers <- c(codes <- c("C07AB04", "C07BB04", "C07CB04", "C07FB26", "C07AB03", "C07BB03", "C07CB03", "C07CB23", "C07CB53", "C07FX18", 
                                          "C07AB05", "S01ED02", "S01ED52", "C07AB07", "C07FX04", "C07FB07", "C07BB27", "C07BB07", "C09BX04", "C09BX02", 
                                          "C09BX05", "C07AB08", "C07BC08", "C07AB09", "C07AB02", "C07BB02", "C07BB22", "C07BB52", "C07CB02", "C07CB22", 
@@ -183,35 +185,34 @@ body_observation <- fhir_body(content = list("subject" = paste(patient_ids_with_
 request_observations <- fhir_url(url = diz_url, resource = "Observation")
 bundles_observation <- fhir_search(request = request_observations, body = body_observation)
 
-# MedicationStatement
-#use "subject" as FHIR-Search parameter in MedicationStatement resource
+# medicationAdministration
+#use "subject" as FHIR-Search parameter in medicationAdministration resource
 #restrict data used by implementing the relevant ATC codes here -> medications_all
-body_medicationStatement <- fhir_body(content = list("subject" = paste(patient_ids_with_conditions, collapse = ","), "medication" = medications_all))
-request_medicationStatements <- fhir_url(url = diz_url, resource = "MedicationStatement")
-bundles_medicationStatement <- fhir_search(request = request_medicationStatements)
+body_medicationAdministration <- fhir_body(content = list("subject" = paste(patient_ids_with_conditions, collapse = ","), "medication" = medications_all))
+request_medicationAdministrations <- fhir_url(url = diz_url, resource = "medicationAdministration")
+bundles_medicationAdministration <- fhir_search(request = request_medicationAdministrations)
 #save for later loading, and to check for entries
-fhir_save(bundles = bundles_medicationStatement, directory = "XML_Bundles/bundles_medicationStatement")
+fhir_save(bundles = bundles_medicationAdministration, directory = "XML_Bundles/bundles_medicationAdministration")
 #crack immediately to provide ids for medication-search
 
-
-if(check_fhir_bundles_in_folder("XML_Bundles/bundles_medicationStatement") == FALSE) {
+if(check_fhir_bundles_in_folder("XML_Bundles/bundles_medicationAdministration") == FALSE) {
   message("The bundle you are trying to crack is empty. This will result in an error. Therefore the bundle will not be cracked.")
-  #create list of medications in the medicationStatements of the Patients
-  medicationStatement_ids <- NA
+  #create list of medications in the medicationAdministrations of the Patients
+  medicationAdministration_ids <- NA
 } else {
-    message("Cracking ", length(bundles_medicationStatement), " medicationStatement Bundles.\n")
-    table_medicationStatements <- fhir_crack(bundles = bundles_medicationStatement, design = tabledescription_medicationStatement, verbose = 1)
-    #create list of medications in the medicationStatements of the Patients
-    medicationStatement_ids <- sub("Medication/", "", table_medicationStatements$medicationStatement_medication_reference)
+    message("Cracking ", length(bundles_medicationAdministration), " medicationAdministration Bundles.\n")
+    table_medicationAdministrations <- fhir_crack(bundles = bundles_medicationAdministration, design = tabledescription_medicationAdministration, verbose = 1)
+    #create list of medications in the medicationAdministrations of the Patients
+    medicationAdministration_ids <- sub("Medication/", "", table_medicationAdministrations$medicationAdministration_medication_reference)
 }
 
 # Medication
-if(contains_ids(medicationStatement_ids)) {
-  body_medication <- fhir_body(content = list("_id" = paste(medicationStatement_ids, collapse = ","), "code" = medications_all))
+if(contains_ids(medicationAdministration_ids)) {
+  body_medication <- fhir_body(content = list("_id" = paste(medicationAdministration_ids, collapse = ","), "code" = medications_all))
   request_medications <- fhir_url(url = diz_url, resource = "Medication")
   bundles_medication <- fhir_search(request = request_medications, body = body_medication)
 } else {
-    message("There are no entries in the Resource MedicationStatements, therefore the corresponding Medications could not be retrieved")
+    message("There are no entries in the Resource medicationAdministrations, therefore the corresponding Medications could not be retrieved")
 }
 
 
@@ -219,7 +220,7 @@ if(contains_ids(medicationStatement_ids)) {
 
 
 # Save Bundles ------------------------------------------------------------
-# (only after first download) move to FHIR Search section (so far only medicationStatement)
+# (only after first download) move to FHIR Search section (so far only medicationAdministration)
 #save and load to circumvent long download times for bundles; comment and uncomment with line above (fhir_search) as necessary
 message("Saving  Bundles.\n")
 fhir_save(bundles = bundles_patient, directory = "XML_Bundles/bundles_patient")
@@ -236,7 +237,7 @@ bundles_patient <- fhir_load(directory = "XML_Bundles/bundles_patient")
 bundles_condition <- fhir_load(directory = "XML_Bundles/bundles_condition")
 bundles_observation <- fhir_load(directory = "XML_Bundles/bundles_observation")
 bundles_medication <- fhir_load(directory = "XML_Bundles/bundles_medication")
-bundles_medicationStatement <- fhir_load(directory = "XML_Bundles/bundles_medicationStatement")
+bundles_medicationAdministration <- fhir_load(directory = "XML_Bundles/bundles_medicationAdministration")
 
 
 # Crack Into Tables -------------------------------------------------------
@@ -264,8 +265,8 @@ table_observations <- fhir_crack(bundles = bundles_observation, design = tablede
 }
 
 #cracking above, to provide ids for medications
-# message("Cracking ", length(bundles_medicationStatement), " MedicationStatement Bundles.\n")
-# table_medicationStatements <- fhir_crack(bundles = bundles_medicationStatement, design = tabledescription_medicationStatement, verbose = 1)
+# message("Cracking ", length(bundles_medicationAdministration), " medicationAdministration Bundles.\n")
+# table_medicationAdministrations <- fhir_crack(bundles = bundles_medicationAdministration, design = tabledescription_medicationAdministration, verbose = 1)
 
 if(check_fhir_bundles_in_folder("XML_Bundles/bundles_medication") == FALSE) {
   message("The bundle you are trying to crack is empty. This will result in an error. Therefore the bundle will not be cracked.")
@@ -389,18 +390,18 @@ if(check_fhir_bundles_in_folder("XML_Bundles/bundles_Observation") == FALSE) {
 table_pat_cond_obs <- merge(table_pat_cond, table_observations, by.x = "patient_identifier", by.y = "observation_subject", all.x = TRUE)
 }
 
-if(check_fhir_bundles_in_folder("XML_Bundles/bundles_MedicationStatement") == FALSE) {
+if(check_fhir_bundles_in_folder("XML_Bundles/bundles_medicationAdministration") == FALSE) {
   message("One of the tables you are trying to merge does not exist (Possibly due to empty resources). Therefore the merge-statement will not be carried out.")
 } else {
 #combine medication statement with the respective medications
-table_meds <- merge(table_medicationStatements, table_medications, by.x = "medicationStatement_medication_reference", by.y = "medication_identifier", all.x = TRUE)
+table_meds <- merge(table_medicationAdministrations, table_medications, by.x = "medicationAdministration_medication_reference", by.y = "medication_identifier", all.x = TRUE)
 }
 
-if(check_fhir_bundles_in_folder("XML_Bundles/bundles_medicationStatement") == FALSE) {
+if(check_fhir_bundles_in_folder("XML_Bundles/bundles_medicationAdministration") == FALSE) {
   message("One of the tables you are trying to merge does not exist (Possibly due to empty resources). Therefore the merge-statement will not be carried out.")
 } else {
 #add medications to patients and conditions and observations
-table_pat_cond_obs_med <- merge(table_pat_cond_obs, table_meds, by.x = "patient_identifier", by.y = "medicationStatement_subject", all.x = TRUE)
+table_pat_cond_obs_med <- merge(table_pat_cond_obs, table_meds, by.x = "patient_identifier", by.y = "medicationAdministration_subject", all.x = TRUE)
 table_all <- table_pat_cond_obs_med
 rm(table_pat_cond, table_pat_cond_obs, table_pat_cond_obs_med)
 }
