@@ -450,7 +450,7 @@ observation_counts_table_all <- table_all %>%
   group_by(patient_identifier) %>%
   summarise(observations_count = n())
 #subtract number of overall observations from number of NA-observations
-observations_empty_columns <- na_counts_table_all[2:28] - observation_counts_table_ll$observations_count 
+observations_empty_columns <- na_counts_table_all[2:28] - observation_counts_table_all$observations_count 
 #re-add IDs
 observations_empty_columns <- cbind(na_counts_table_all$patient_identifier, observations_empty_columns)
 #count number of IDs that have columns where all observations were NA
@@ -607,7 +607,7 @@ navalues_charge
 message("Writing Results into CSV-Files.\n")
 #export relevant data as csv for further use
 write.csv(navalues_all_columns, "Output/missing_values_all_columns.csv")
-write.csv(observation_empty_columns, "Output/observation_empty_columns.csv")
+write.csv(observations_empty_columns, "Output/observation_empty_columns.csv")
 write.csv(observations_NA_columns, "Output/observation_NA_columns_only.csv")
 
 
