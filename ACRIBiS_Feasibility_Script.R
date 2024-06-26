@@ -285,7 +285,8 @@ if(length(table_patients$patient_identifier)==0){
 # Data Cleaning -----------------------------------------------------------
 message("Cleaning the Data.\n")
 
-## Consider the case if only birthyear is supplied
+## According ti Implementation Guide: birthdate (or year) should be supplied in data of the type Date (Consider the case if only birthyear is supplied)
+## check Mail from Mr Wendl (Munich)
 #Birthyear
 convert_date_to_year <- function(birthdate) {
   # Check if the input is a Date object
@@ -295,7 +296,7 @@ convert_date_to_year <- function(birthdate) {
     # Check if the input contains a full date
     if (grepl("-", birthdate)) {
       # Extract the year from the full date
-      year <- as.numeric(format(as.Date(birthdate, "%Y-%m-%d"), "%Y"))
+      year <- as.numeric(format(as.Date(birthdate, "%d-%m-%Y"), "%Y"))
     } else {
       # If it's just a year, convert it to numeric
       year <- as.numeric(birthdate)
@@ -307,7 +308,7 @@ convert_date_to_year <- function(birthdate) {
     #Return NA for any other cases
     stop("Invalid birthdate format")
     message("The provided Format for Patient Birthday/Birthyear does not match the expected Format (String or Integer)")
-    return(NA)
+    year <- NA
   }
   return(year)
 }
@@ -456,6 +457,7 @@ observations_empty_columns <- cbind(na_counts_table_all$patient_identifier, obse
 #count number of IDs that have columns where all observations were NA
 observations_NA_columns <- colSums(observations_empty_columns == 0)
 
+
 #count number of patients (navalues_all_columns counts data entries not patients) who have NA in condition code, observation code or medication code 
 patients_with_navalues_condition <- table_all %>%
   filter(is.na(condition_code)) %>%
@@ -480,6 +482,7 @@ patients_with_condition_observation_medication
 
 ## Check distribution of parameters ##########################################################################
 #gives min, max, mean, median and n where applicable (discrete and continuous data)
+desc_patient_age <- table_patients %>% summarise(min_age = min(patient_age), mean_age = mean(patient_age), median_age = median(patient_age), max_age = max(patient_age), n = n())
 #observation
 desc_observation <- table_observations %>% filter(!is.na(observation_code)) %>% group_by(observation_code, observation_LOINC_term) %>% summarise(min = min(observation_value_num), mean = mean(observation_value_num), median = median (observation_value_num), max = max(observation_value_num), n=n())
 #condition
@@ -487,6 +490,10 @@ desc_conditions <- table_conditions %>% filter(!is.na(condition_code)) %>% count
 #medications
 desc_medication <- table_meds %>% filter(!is.na(medication_code)) %>% count(medication_code)
 
+desc_patient_gender <- table(table_patients$patient_gender)
+
+desc_patient_age
+desc_patient_gender
 desc_observation
 desc_conditions
 desc_medication
@@ -514,25 +521,25 @@ maggic_inclusion_icd_codes <- icd_expand(maggic_inclusion_icd_codes, col_icd = "
 
 ## CHARGE-AF
 #46 < age < 94, creatinine < 2mg/dl (14682-9, 2160-0 (38483-4, 77140-2)), no I48
-#chargeaf_exclusion_icd_codes <- chargeaf_exclusion_icd_codes <- data.frame(icd_code = c("I48"))
-#chargeaf_exclusion_icd_codes <- icd_expand(chargeaf_exclusion_icd_codes, col_icd = "icd_code", year = 2023)
-
+# chargeaf_exclusion_icd_codes <- chargeaf_exclusion_icd_codes <- data.frame(icd_code = c("I48"))
+# chargeaf_exclusion_icd_codes <- icd_expand(chargeaf_exclusion_icd_codes, col_icd = "icd_code", year = 2023)
+# --> not necessary as it is only one code which is checked in ifelse statement below
 
 
 # create variable to indicate if patient/observation is score eligible and if score can be calculated
 #eligible
-table_all$chadsvasc_eligible <- ifelse(table_all$patient_age >= 18 
-                                       & table_all$condition_code %in% chadsvasc_inclusion_icd_codes$icd_normcode, 1, 0)
+table_all$chadsvasc_eligible <- ifelse((table_all$patient_age >= 18) 
+                                       & (table_all$condition_code %in% chadsvasc_inclusion_icd_codes$icd_normcode), 1, 0)
 table_all$smart_eligible <- ifelse(table_all$patient_age >= 40 & table_all$patient_age <= 80 
                                    & table_all$condition_code %in% smart_inclusion_icd_codes$icd_normcode, 1, 0)
 table_all$maggic_eligible <- ifelse(table_all$patient_age >= 18 
                                     & table_all$condition_code %in% maggic_inclusion_icd_codes$icd_normcode, 1, 0)
+#define loinc codes for which to check the value
+charge_check_loinc_codes <- c("14682-9", "2160-0", "38483-4", "77140-2")
+
 table_all$charge_eligible <- ifelse(table_all$patient_age >= 46 & table_all$patient_age <= 94 
                                     & table_all$condition_code_short != "I48" 
-                                    & (!(table_all$observation_code == "14682-9" & table_all$observation_value_num > 2)
-                                       | !(table_all$observation_code == "2160-0" & table_all$observation_value_num > 2)
-                                       | !(table_all$observation_code == "38483-4" & table_all$observation_value_num > 2)
-                                       | !(table_all$observation_code == "77140-2" & table_all$observation_value_num > 2)), 1, 0)
+                                    & (!(table_all$observation_code %in% charge_check_loinc_codes & table_all$observation_value_num > 2)), 1, 0)
 table_all$charge_eligible <- ifelse(is.na(table_all$charge_eligible), 0, table_all$charge_eligible)
 
 #can_calc, alle necessary observations are available; if patient does not conditions/medications they are (correctly) missing
@@ -614,6 +621,8 @@ write.csv(observations_NA_columns, "Output/observation_NA_columns_only.csv")
 #combinations of conditions corresponding observations and medications
 write.csv(patients_with_condition_observation_medication, "Output/number_of_patients_per_combinations_of_condition_observation_medication.csv")
 #descriptives (min, max, mean, n) of available Observations, Conditions and Medications
+write.csv(desc_patient_age, "Output/Descriptives_of_Patient_Age.csv")
+write.csv(desc_patient_gender, "Output/Descriptives_of_Patient_Gender.csv")
 write.csv(desc_observation, "Output/Descriptives_of_Observations.csv")
 write.csv(desc_conditions, "Output/Descriptives_of_Conditions.csv")
 write.csv(desc_medication, "Output/Descriptives_of_Medications.csv")
