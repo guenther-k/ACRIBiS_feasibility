@@ -213,7 +213,7 @@ write(paste(length(bundles_observation), " Bundles for the Observation-Ressource
 #restrict data used by implementing the relevant ATC codes here -> medications_all
 body_medicationAdministration <- fhir_body(content = list("subject" = paste(patient_ids_with_conditions, collapse = ","), "medication" = medications_all))
 request_medicationAdministrations <- fhir_url(url = diz_url, resource = "MedicationAdministration")
-bundles_medicationAdministration <- fhir_search(request = request_medicationAdministrations)
+bundles_medicationAdministration <- fhir_search(request = request_medicationAdministrations, max_bundles = 20)
 
 #give out statements after certain chunks to document progress
 write(paste("Finished Search for MedicationAdministration-Ressources at", Sys.time(), "\n"), file = log, append = T)
