@@ -1,5 +1,5 @@
-#source("config.R")
 source("install_R_packages.R")
+source("support_functions.R")
 
 #source config
 if(file.exists("config.R")&&!dir.exists("config.R")){
@@ -8,6 +8,11 @@ if(file.exists("config.R")&&!dir.exists("config.R")){
   source("config.R.default")  
 }
 
+
+#create log file, named for date and time of creation
+if(!dir.exists("Logs")){dir.create("Logs")}
+log <- paste0("logs/", format(Sys.time(), "%Y%m%d_%H%M%S"),".txt", collapse = "")
+write(paste("Starting Script ACRIBiS_Feasibility_Script.R at", Sys.time()), file = log, append = T)
 
 
 # Setup -------------------------------------------------------------------
@@ -159,17 +164,25 @@ medications_antithrombotic <- c("B01AA01", "B01AA02", "B01AA03", "B01AA04", "B01
 medications_all <- paste(c(medications_betablockers, medications_acei_arb, medications_antithrombotic), collapse = ",")
 
 
+#give out statements after certain chunks to document progress
+write(paste("Finished Setup at", Sys.time(), "\n"), file = log, append = T)
+
 
 # FHIR Searches -----------------------------------------------------------
 # (only for first download, then load saved bundles to save time)
 # Patients
 #create the search body which lists all the found Patient IDs and restricts on specified parameters (birthdate)
 #use "_id" as global FHIR-Search parameter in patient resource
-body_patient <- fhir_body(content = list("_id" = paste(patient_ids_with_conditions, collapse = ","), "birthdate" = "le2006-07-01"))
+body_patient <- fhir_body(content = list("_id" = paste(patient_ids_with_conditions, collapse = ","), "birthdate" = "lt2006-07-01"))
 #create request for specified URL and Resource
 request_patients <- fhir_url(url = diz_url, resource = "Patient")
 #Execute the fhir search using the above defined request and body
 bundles_patient <- fhir_search(request = request_patients, body = body_patient)
+
+#give out statements after certain chunks to document progress
+write(paste("Finished Search for Patient-Ressources at", Sys.time(), "\n"), file = log, append = T)
+write(paste(length(bundles_patient), " Bundles for the Patient-Ressource were found \n"), file = log, append = T)
+
 
 #Condition
 #now load all CONDITIONS for relevant patient IDs, to obtain other conditions (comorbidities) of relevant patients
@@ -179,18 +192,34 @@ request_conditions <- fhir_url(url = diz_url, resource = "Condition")
 #code or normcode?; normcode appears to work
 bundles_condition <- fhir_search(request = request_conditions)
 
+#give out statements after certain chunks to document progress
+write("Finished Search for Condition-Ressources at", Sys.time(), "\n", file = log, append = T)
+write(paste(length(bundles_condition), " Bundles for the Condition-Ressource were found \n"), file = log, append = T)
+
+
 # Observation
 #use "subject" as FHIR search parameter for Observation resource
 body_observation <- fhir_body(content = list("subject" = paste(patient_ids_with_conditions, collapse = ","), "code" = LOINC_codes_all))
 request_observations <- fhir_url(url = diz_url, resource = "Observation")
 bundles_observation <- fhir_search(request = request_observations, body = body_observation)
 
+#give out statements after certain chunks to document progress
+write(paste("Finished Search for Observation-Ressources at", Sys.time(), "\n"), file = log, append = T)
+write(paste(length(bundles_observation), " Bundles for the Observation-Ressource were found \n"), file = log, append = T)
+
+
 # medicationAdministration
 #use "subject" as FHIR-Search parameter in medicationAdministration resource
 #restrict data used by implementing the relevant ATC codes here -> medications_all
 body_medicationAdministration <- fhir_body(content = list("subject" = paste(patient_ids_with_conditions, collapse = ","), "medication" = medications_all))
-request_medicationAdministrations <- fhir_url(url = diz_url, resource = "medicationAdministration")
+request_medicationAdministrations <- fhir_url(url = diz_url, resource = "MedicationAdministration")
 bundles_medicationAdministration <- fhir_search(request = request_medicationAdministrations)
+
+#give out statements after certain chunks to document progress
+write(paste("Finished Search for MedicationAdministration-Ressources at", Sys.time(), "\n"), file = log, append = T)
+write(paste(length(bundles_medicationAdministration), " Bundles for the MedicationAdministration-Ressource were found \n"), file = log, append = T)
+
+
 #save for later loading, and to check for entries
 fhir_save(bundles = bundles_medicationAdministration, directory = "XML_Bundles/bundles_medicationAdministration")
 #crack immediately to provide ids for medication-search
@@ -204,7 +233,12 @@ if(check_fhir_bundles_in_folder("XML_Bundles/bundles_medicationAdministration") 
     table_medicationAdministrations <- fhir_crack(bundles = bundles_medicationAdministration, design = tabledescription_medicationAdministration, verbose = 1)
     #create list of medications in the medicationAdministrations of the Patients
     medicationAdministration_ids <- sub("Medication/", "", table_medicationAdministrations$medicationAdministration_medication_reference)
+    #give out statements after certain chunks to document progress
+    write(paste("Cracked Table for MedicationAdministration-Ressources at", Sys.time(), "\n"), file = log, append = T)
+    write(paste(nrow(table_medicationAdministrations), " Elements were created for MedicationAdministration \n"), file = log, append = T)
 }
+
+
 
 # Medication
 if(contains_ids(medicationAdministration_ids)) {
@@ -215,8 +249,11 @@ if(contains_ids(medicationAdministration_ids)) {
     message("There are no entries in the Resource medicationAdministrations, therefore the corresponding Medications could not be retrieved")
 }
 
+#give out statements after certain chunks to document progress
+write(paste("Finished Search for Medication-Ressources at", Sys.time(), "\n"), file = log, append = T)
+write(paste(length(bundles_medication), " Bundles for the Medication-Ressource were found \n"), file = log, append = T)
 
-# Modul Fall für Einrichtungskontakt: nicht möglich, da Abteilungsschlüssel nur in Beschreibung aber nicht in FHIR-Profil hinterlegt ist
+#(Modul Fall für Einrichtungskontakt: nicht möglich, da Abteilungsschlüssel nur in Beschreibung aber nicht in FHIR-Profil hinterlegt ist)
 
 
 # Save Bundles ------------------------------------------------------------
@@ -228,7 +265,8 @@ fhir_save(bundles = bundles_condition, directory = "XML_Bundles/bundles_conditio
 fhir_save(bundles = bundles_observation, directory = "XML_Bundles/bundles_observation")
 #medicationStaements is cracked earlier to retrieve IDs for download of Medication data
 fhir_save(bundles = bundles_medication, directory = "XML_Bundles/bundles_medication")
-
+#give out statements after certain chunks to document progress
+write(paste("Saved Bundles at ", Sys.time(), "\n"), file = log, append = T)
 
 # Load Bundles ------------------------------------------------------------
 # (after bundles are saved)
@@ -238,7 +276,8 @@ bundles_condition <- fhir_load(directory = "XML_Bundles/bundles_condition")
 bundles_observation <- fhir_load(directory = "XML_Bundles/bundles_observation")
 bundles_medication <- fhir_load(directory = "XML_Bundles/bundles_medication")
 bundles_medicationAdministration <- fhir_load(directory = "XML_Bundles/bundles_medicationAdministration")
-
+#give out statements after certain chunks to document progress
+write(paste("Loaded Bundles at", Sys.time(), "\n"), file = log, append = T)
 
 # Crack Into Tables -------------------------------------------------------
 #crack bundles into table
@@ -248,6 +287,7 @@ if(check_fhir_bundles_in_folder("XML_Bundles/bundles_patient") == FALSE) {
 } else {
 message("Cracking ", length(bundles_patient), " Patient Bundles.\n")
 table_patients <- fhir_crack(bundles = bundles_patient, design = tabledescription_patient, verbose = 1)
+write(paste(nrow(table_patients), " Elements were created for Patients \n"), file = log, append = T)
   }
 
 if(check_fhir_bundles_in_folder("XML_Bundles/bundles_condition") == FALSE) {
@@ -255,6 +295,7 @@ if(check_fhir_bundles_in_folder("XML_Bundles/bundles_condition") == FALSE) {
 } else {
 message("Cracking ", length(bundles_condition), " Condition Bundles.\n")
 table_conditions <- fhir_crack(bundles = bundles_condition, design = tabledescription_condition, verbose = 1)
+write(paste(nrow(table_conditions), " Elements were created for Conditions \n"), file = log, append = T)
 }
 
 if(check_fhir_bundles_in_folder("XML_Bundles/bundles_observation") == FALSE) {
@@ -262,6 +303,7 @@ if(check_fhir_bundles_in_folder("XML_Bundles/bundles_observation") == FALSE) {
 } else {
 message("Cracking ", length(bundles_observation), " Observation Bundles.\n")
 table_observations <- fhir_crack(bundles = bundles_observation, design = tabledescription_observation, verbose = 1)
+write(paste(nrow(table_observations), " Elements were created for Observations \n"), file = log, append = T)
 }
 
 #cracking above, to provide ids for medications
@@ -273,6 +315,7 @@ if(check_fhir_bundles_in_folder("XML_Bundles/bundles_medication") == FALSE) {
 } else {
 message("Cracking ", length(bundles_medication), " Medication Bundles.\n")
 table_medications <- fhir_crack(bundles = bundles_medication, design = tabledescription_medication, verbose = 1)
+write(paste(nrow(table_medications), " Elements were created for Medications \n"), file = log, append = T)
 }
 
 
@@ -281,38 +324,15 @@ if(length(table_patients$patient_identifier)==0){
   stop("No Patients found - aborting.")
 }
 
+#give out statements after certain chunks to document progress
+write(paste("Bundles were cracked into tables at", Sys.time(), "\n"), file = log, append = T)
+
 
 # Data Cleaning -----------------------------------------------------------
 message("Cleaning the Data.\n")
 
-## According ti Implementation Guide: birthdate (or year) should be supplied in data of the type Date (Consider the case if only birthyear is supplied)
-## check Mail from Mr Wendl (Munich)
-#Birthyear
-convert_date_to_year <- function(birthdate) {
-  # Check if the input is a Date object
-  if (inherits(birthdate, "Date")) {
-    year <- as.numeric(format(birthdate, "%Y"))
-  } else if (is.character(birthdate)) {
-    # Check if the input contains a full date
-    if (grepl("-", birthdate)) {
-      # Extract the year from the full date
-      year <- as.numeric(format(as.Date(birthdate, "%d-%m-%Y"), "%Y"))
-    } else {
-      # If it's just a year, convert it to numeric
-      year <- as.numeric(birthdate)
-    }
-  } else if (is.numeric(birthdate)) {
-    # If the input is already numeric, assume it's a year
-    year <- birthdate
-  } else {
-    #Return NA for any other cases
-    stop("Invalid birthdate format")
-    message("The provided Format for Patient Birthday/Birthyear does not match the expected Format (String or Integer)")
-    year <- NA
-  }
-  return(year)
-}
-
+#convert birthday to birthyear and calculate age
+#fhircracking-process makes all varibales into character-variables, year should always be given first (according to Implementation Guide/FHIR), first four characters can be extracted for birthyear
 if(check_fhir_bundles_in_folder("XML_Bundles/bundles_patient") == FALSE) {
   message("The action you trying to carry out is not possible due to empty resources. Executing the action would result in an error. Therefore the action will not be carried out.")
 } else {
@@ -320,7 +340,10 @@ if(check_fhir_bundles_in_folder("XML_Bundles/bundles_patient") == FALSE) {
 table_patients$patient_birthdate <- sapply(table_patients$patient_birthdate, convert_date_to_year)
 #rename column for clarity
 colnames(table_patients)[colnames(table_patients) == "patient_birthdate"] <- "patient_birthyear"
-}
+#calculate age
+current_year <- as.numeric(format(Sys.Date(), "%Y"))
+table_patients$patient_age <- current_year - table_patients$patient_birthyear
+  }
 
 if(check_fhir_bundles_in_folder("XML_Bundles/bundles_observation") == FALSE | check_fhir_bundles_in_folder("XML_Bundles/bundles_condition") == FALSE) {
   message("The action you trying to carry out is not possible due to empty resources. Executing the action would result in an error. Therefore the action will not be carried out.")
@@ -328,51 +351,33 @@ if(check_fhir_bundles_in_folder("XML_Bundles/bundles_observation") == FALSE | ch
 #values must be changed to numeric to show distribution
 table_observations$observation_value_num <- as.numeric(table_observations$observation_value)
 
-#rename character columns
-colnames(table_conditions) [colnames(table_conditions) == "condition_recordedDate"] <- "condition_recordedDate_char"
-colnames(table_conditions) [colnames(table_conditions) == "condition_onsetDate"] <- "condition_onsetDate_char"
-colnames(table_observations) [colnames(table_observations) == "observation_datetime"] <- "observation_datetime_char"
-
-
-#remove time zone term
-table_conditions$condition_recordedDate_char <- sub("\\+.*", "", table_conditions$condition_recordedDate_char)
-table_conditions$condition_onsetDate_char <- sub("\\+.*", "", table_conditions$condition_onsetDate_char)
-table_observations$observation_datetime_char <- sub("\\+.*", "", table_observations$observation_datetime_char)
-#convert data type to datetime, format = "%Y-%m-%d %H:%M:%S"
-table_conditions$condition_recordedDate <- as.Date(table_conditions$condition_recordedDate_char)
-table_conditions$condition_onsetDate <- as.Date(table_conditions$condition_onsetDate_char)
-
-#Time of day not relevant for analyses
-#table_conditions$condition_recordedDateTime <- as.POSIXct(table_conditions$condition_recordedDate_char, format = "%Y-%m-%dT%H:%M:%S")
-#R does not show the time because here it is 00:00:00 (default) therefor the column has to be formatted again
-#table_conditions$condition_recordedDateTime <- format(table_conditions$condition_recordedDateTime, "%Y-%m-%d %H:%M:%S")
-
-#Here we have defined times in the data, therefore R displays the time in the datetime column
-table_observations$observation_recordedDate <- as.Date(table_observations$observation_datetime_char)
-#table_observations$observation_recordedDateTime <- as.POSIXct(table_observations$observation_datetime_char, format = "%Y-%m-%dT%H:%M:%S")
-
+#change character columns for date to datetime
+table_conditions$condition_recordedDate <- anytime(table_conditions$condition_recordedDate)
+table_conditions$condition_onsetDate <- ymd_hms(table_conditions$condition_onsetDate, tz = "UTC")
+table_observations$observation_datetime <- ymd_hms(table_observations$observation_datetime, tz = "UTC")
 
 #calculate time since onset for all conditions 
-#calculate average time since diagnosis for each condition (select time for first HKE diagnosis) (I05-I09, I20-I25, I30-I52)
-time_since_first_diagnosis_record <- table_conditions %>%
+table_conditions$time_since_first_diagnosis_using_recordeddate <- difftime(Sys.time(), table_conditions$condition_recordedDate, units = "days")
+table_conditions$time_since_first_diagnosis_using_onsetdate <- difftime(Sys.time(), table_conditions$condition_onsetDate, units = "days")
+#calculate average time since diagnosis for each condition (selecting average time for first HKE diagnosis possible) (I05-I09, I20-I25, I30-I52)
+time_since_first_diagnosis_recorded <- table_conditions %>%
   group_by(table_conditions$condition_code) %>%
-  summarise(average_time_since_first_diagnosis = mean((Sys.Date() - table_conditions$condition_recordedDate), na.rm = TRUE))
+  summarise(average_time_since_first_diagnosis = mean(time_since_first_diagnosis_using_recordeddate, na.rm = TRUE))
 time_since_first_diagnosis_onset <- table_conditions %>%
   group_by(table_conditions$condition_code) %>%
-  summarise(average_time_since_first_diagnosis = mean((Sys.Date() - table_conditions$condition_onsetDate), na.rm = TRUE))
+  summarise(average_time_since_first_diagnosis = mean(time_since_first_diagnosis_using_onsetdate, na.rm = TRUE))
 
 
-#import table with LOINC Code for reference, send CSV with Script, change path to be universially applicable
+#import table with LOINC Code for reference, send CSV with Script, change path to be universally applicable
 loinc_codes <- read.csv("Loinc_2.76/LoincTable/Loinc.csv")
 #add content of LOINC codes to observation table
 table_observations <-  merge(table_observations, loinc_codes[, c("LOINC_NUM", "COMPONENT")], by.x = "observation_code", by.y = "LOINC_NUM", all.x = TRUE)
 # Rename column COMPONENT to observation_LOINC_term
 colnames(table_observations)[colnames(table_observations) == "COMPONENT"] <- "observation_LOINC_term"
-
-#re-order table columns for improved readability
-#table_observations <- select(table_observations, "observation_identifier", "observation_code", "observation_LOINC_term", "observation_value", "observation_value_num", "observation_unit", "observation_datetime_char", "observation_recordedDate", "observation_recordedDateTime", "observation_subject")
 }
 
+#give out statements after certain chunks to document progress
+write(paste("Data Cleaning was finished at", Sys.time(), "\n"), file = log, append = T)
 
 # Link Resources ----------------------------------------------------------
 message("Combining Tables.\n")
@@ -410,9 +415,6 @@ rm(table_pat_cond, table_pat_cond_obs, table_pat_cond_obs_med)
 if(is.null(table_all) == TRUE) {
   message("One of the tables you are trying to merge does not exist (Possibly due to empty resources). Therefore the merge-statement will not be carried out.")
 } else {
-#add column for age, rounded to 1 decimal place to not lose information on underage patients
-#table_all$patient_age <- as.numeric(round(difftime(Sys.Date(), table_all$patient_birthdate, units = "days") / 365.25, 1))
-table_all$patient_age <- as.numeric(gsub("-\\d{2}-\\d{2}$", "", Sys.Date())) - table_all$patient_birthyear
 
 #column with time since first CVD Diagnosis for each patient per patient
 #calculate time since first Cardiovascular Diagnosis (I05-I09, I20-I25, I30-I52)
@@ -433,6 +435,9 @@ table_all %>%
   mutate(condition_time_since_first_cvd_onset = as.numeric(difftime(Sys.Date(), condition_first_diagnosis_date, units = "days")))
 #should work if data is available, otherwise warning
 
+#give out statements after certain chunks to document progress
+write(paste("Resource-Tables were combined into one Table at", Sys.time(), "\n"), file = log, append = T)
+write(paste("The combined Table across all Resources has ", nrow(table_all), " Entries for ", length(unique(table_all$patient_identifier)) ," Patients \n"), file = log, append = T)
 
 
 # Feasibility Analysis ----------------------------------------------------
@@ -441,8 +446,9 @@ message("Analysing Data.\n")
 #sum up all entries of NA in each of the columns of table_all
 navalues_all_columns <- table_all %>% summarise(across(everything(), ~ sum(is.na(.))))
 
+
 ## possibly repeat for each Score-specific table
-#count number of NAs in each column for every ID
+#count number of NAs in each column for every ID, multiple entries per ID expected with multiple conditions, medications and observations
 na_counts_table_all <- table_all %>%
   group_by(patient_identifier) %>%
   summarise_all(~ sum(is.na(.)))
@@ -490,7 +496,7 @@ desc_conditions <- table_conditions %>% filter(!is.na(condition_code)) %>% count
 #medications
 desc_medication <- table_meds %>% filter(!is.na(medication_code)) %>% count(medication_code)
 
-desc_patient_gender <- table(table_patients$patient_gender)
+desc_patient_gender <- as.data.frame(table(table_patients$patient_gender))
 
 desc_patient_age
 desc_patient_gender
@@ -608,6 +614,8 @@ navalues_smart
 navalues_maggic
 navalues_charge
 
+#give out statements after certain chunks to document progress
+write(paste("Analysis Steps were finished at", Sys.time(), "\n"), file = log, append = T)
 
 
 # Data Export -------------------------------------------------------------
@@ -641,6 +649,10 @@ write.csv(navalues_charge, "Output/number_of_patients_with_NAs_per_column_charge
 
 #crosstables for eligibility und availbility 
 write.csv(crosstabs_eligibility_availability_chadsvasc, "Output/eligibility_availability_chadsvasc")
+
+#give out statements after certain chunks to document progress
+write(paste("Data Exports were finished at", Sys.time(), "\n"), file = log, append = T)
+
 
 #description of populations that eligible for each risk score (age, gender, maybe condition/observation?)?
 #additional variables for description of observation, condition, medication?
