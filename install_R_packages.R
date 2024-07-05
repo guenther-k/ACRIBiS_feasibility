@@ -1,4 +1,4 @@
-required_packages <- c("fhircrackr", "dplyr", "sqldf", "anytime", "ICD10gm", "knitr", "xml2")
+required_packages <- c("fhircrackr", "dplyr", "sqldf", "anytime", "ICD10gm", "knitr", "xml2", "lubridate")
 
 for(package in required_packages){
   
@@ -16,5 +16,6 @@ library(anytime)
 library(ICD10gm)
 library(knitr)
 library(xml2)
+library(lubridate)
 
 
