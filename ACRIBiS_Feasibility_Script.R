@@ -455,7 +455,6 @@ message("Analysing Data.\n")
 navalues_all_columns <- table_all %>% summarise(across(everything(), ~ sum(is.na(.))))
 
 
-## possibly repeat for each Score-specific table
 #count number of NAs in each column for every ID, multiple entries per ID expected with multiple conditions, medications and observations
 na_counts_table_all <- table_all %>%
   group_by(patient_identifier) %>%
@@ -467,12 +466,9 @@ observation_counts_table_all <- table_all %>%
 #subtract number of overall observations from number of NA-observations
 patient_observations_per_column <- observation_counts_table_all$observations_count - na_counts_table_all[2:28]
 # do not re-add IDs for Output purposes
-#observations_empty_columns <- cbind(na_counts_table_all$patient_identifier, observations_empty_columns)
-patient_observations_per_column_sum <- colSums(observations_empty_columns)
+patient_observations_per_column_sum <- colSums(patient_observations_per_column)
 #count number of IDs that have columns where all observations were NA; counterpart to patient_observations_per_column_sum
 patients_with_NA_columns <- colSums(observations_empty_columns == 0)
-
-rm()
 
 
 #count number of patients (navalues_all_columns counts data entries not patients) who have NA in condition code, observation code or medication code 
@@ -517,7 +513,6 @@ desc_medication
 
 
 ### Create Tables for Observation (not Patients) with respective Score criteria 
-
 #shorten ICD-10 code to simplify operations (only first three characters are needed)
 table_all$condition_code_short <- substr(table_all$condition_code,1,3)
 
