@@ -376,6 +376,14 @@ table_observations <-  merge(table_observations, loinc_codes[, c("LOINC_NUM", "C
 colnames(table_observations)[colnames(table_observations) == "COMPONENT"] <- "observation_LOINC_term"
 }
 
+
+#remove "Patient/" prefix from subject-column to allow merging of tables, same for medication if necessary
+table_conditions$condition_subject <- sub("Patient/", "", table_conditions$condition_subject) 
+table_observations$observation_subject <- sub("Patient/", "", table_conditions$observation_subject)
+table_medicationAdministrations$medicationAdministration_subject <- sub("Patient/", "", table_medicationAdministrations$medicationAdministration_subject) 
+table_medicationAdministrations$medicationAdministration_medication_reference <- sub("Medication/", "", table_medicationAdministrations$medicationAdministration_medication_reference)
+
+
 #give out statements after certain chunks to document progress
 write(paste("Data Cleaning was finished at", Sys.time(), "\n"), file = log, append = T)
 
@@ -457,11 +465,14 @@ observation_counts_table_all <- table_all %>%
   group_by(patient_identifier) %>%
   summarise(observations_count = n())
 #subtract number of overall observations from number of NA-observations
-observations_empty_columns <- na_counts_table_all[2:28] - observation_counts_table_all$observations_count 
-#re-add IDs
-observations_empty_columns <- cbind(na_counts_table_all$patient_identifier, observations_empty_columns)
-#count number of IDs that have columns where all observations were NA
-observations_NA_columns <- colSums(observations_empty_columns == 0)
+patient_observations_per_column <- observation_counts_table_all$observations_count - na_counts_table_all[2:28]
+# do not re-add IDs for Output purposes
+#observations_empty_columns <- cbind(na_counts_table_all$patient_identifier, observations_empty_columns)
+patient_observations_per_column_sum <- colSums(observations_empty_columns)
+#count number of IDs that have columns where all observations were NA; counterpart to patient_observations_per_column_sum
+patients_with_NA_columns <- colSums(observations_empty_columns == 0)
+
+rm()
 
 
 #count number of patients (navalues_all_columns counts data entries not patients) who have NA in condition code, observation code or medication code 
@@ -621,8 +632,8 @@ write(paste("Analysis Steps were finished at", Sys.time(), "\n"), file = log, ap
 # Data Export -------------------------------------------------------------
 message("Writing Results into CSV-Files.\n")
 #export relevant data as csv for further use
-write.csv(navalues_all_columns, "Output/missing_values_all_columns.csv")
-write.csv(observations_empty_columns, "Output/observation_empty_columns.csv")
+write.csv(navalues_all_columns, "Output/number_of_missing_values_all_columns.csv")
+write.csv(observations_empty_columns, "Output/observations_empty_columns.csv")
 write.csv(observations_NA_columns, "Output/observation_NA_columns_only.csv")
 
 
@@ -635,12 +646,12 @@ write.csv(desc_observation, "Output/Descriptives_of_Observations.csv")
 write.csv(desc_conditions, "Output/Descriptives_of_Conditions.csv")
 write.csv(desc_medication, "Output/Descriptives_of_Medications.csv")
 #number of eligible and calculable observations per Risk Score
-write.csv(as.data.frame(table(table_all$chadsvasc_eligible, table_all$chadsvasc_can_calc, dnn = list("Eligible", "Calculable"))), "Output/crosstabs_eligible_calculable_chadsvasc")
-write.csv(as.data.frame(table(table_all$smart_eligible, table_all$smart_can_calc, dnn = list("Eligible", "Calculable"))), "Output/crosstabs_eligible_calculable_smart")
-write.csv(as.data.frame(table(table_all$maggic_eligible, table_all$maggic_can_calc, dnn = list("Eligible", "Calculable"))), "Output/crosstabs_eligible_calculable_maggic")
-write.csv(as.data.frame(table(table_all$charge_eligible, table_all$charge_can_calc, dnn = list("Eligible", "Calculable"))), "Output/crosstabs_eligible_calculable_charge")
+write.csv(as.data.frame(table(table_all$chadsvasc_eligible, table_all$chadsvasc_can_calc, dnn = list("Eligible", "Calculable"))), "Output/crosstabs_eligible_calculable_chadsvasc.csv")
+write.csv(as.data.frame(table(table_all$smart_eligible, table_all$smart_can_calc, dnn = list("Eligible", "Calculable"))), "Output/crosstabs_eligible_calculable_smart.csv")
+write.csv(as.data.frame(table(table_all$maggic_eligible, table_all$maggic_can_calc, dnn = list("Eligible", "Calculable"))), "Output/crosstabs_eligible_calculable_maggic.csv")
+write.csv(as.data.frame(table(table_all$charge_eligible, table_all$charge_can_calc, dnn = list("Eligible", "Calculable"))), "Output/crosstabs_eligible_calculable_charge.csv")
 #number of eligible and calculable observations for any Score
-write.csv(as.data.frame(table(table_all$any_score_eligible, table_all$any_score_can_calc, dnn = list("Eligible", "Calculable"))), "Output/crosstabs_eligible_calculable_charge")
+write.csv(as.data.frame(table(table_all$any_score_eligible, table_all$any_score_can_calc, dnn = list("Eligible", "Calculable"))), "Output/crosstabs_eligible_calculable_charge.csv")
 #number patients who have NAs in any of the columns, per Risk Score
 write.csv(navalues_chadsvasc, "Output/number_of_patients_with_NAs_per_column_chadsvasc.csv")
 write.csv(navalues_smart, "Output/number_of_patients_with_NAs_per_column_smart.csv")
@@ -648,7 +659,7 @@ write.csv(navalues_maggic, "Output/number_of_patients_with_NAs_per_column_maggic
 write.csv(navalues_charge, "Output/number_of_patients_with_NAs_per_column_charge.csv")
 
 #crosstables for eligibility und availbility 
-write.csv(crosstabs_eligibility_availability_chadsvasc, "Output/eligibility_availability_chadsvasc")
+write.csv(crosstabs_eligibility_availability_chadsvasc, "Output/eligibility_availability_chadsvasc.csv")
 
 #give out statements after certain chunks to document progress
 write(paste("Data Exports were finished at", Sys.time(), "\n"), file = log, append = T)
@@ -659,3 +670,5 @@ write(paste("Data Exports were finished at", Sys.time(), "\n"), file = log, appe
 message("End.\n")
 
 }
+
+
