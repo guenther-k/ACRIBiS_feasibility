@@ -1,9 +1,9 @@
-source("install_R_packages.R")
-source("support_functions.R")
+source("ACRIBiS_Feasibility_install_R_packages.R")
+source("ACRIBiS_Feasibility_support_functions.R")
 
 #source config
-if(file.exists("config.R")&&!dir.exists("config.R")){
-  source("config.R")
+if(file.exists("ACRIBiS_Feasibility_config.R")&&!dir.exists("ACRIBiS_Feasibility_config.R")){
+  source("ACRIBiS_Feasibility_config.R")
 }else{
   source("config.R.default")  
 }
@@ -65,8 +65,10 @@ tabledescription_medicationAdministration <- fhir_table_description(
 tabledescription_medication <- fhir_table_description(
   resource = "Medication",
   cols = c(medication_identifier      = "id",
+           #Codingsystem auf bfarm/atc gesetzt, andere Systeme werden vorraussichtlich nicht erkannt; ggf iterativ einbauen, Frage in Zulip Chat stellen
            medication_system          = "code/coding[system[@value='http://fhir.de/CodeSystem/bfarm/atc']]/system",
            medication_code            = "code/coding[system[@value='http://fhir.de/CodeSystem/bfarm/atc']]/code",
+           medication_display         = "code/coding[system[@value='http://fhir.de/CodeSystem/bfarm/atc']]/display",
            medication_text            = "code/text",
            medication_strength        = "ingredient/strength/numerator/value",
            medication_strength_per    = "ingredient/strength/denominator/value",
@@ -170,6 +172,7 @@ write(paste("Finished Setup at", Sys.time(), "\n"), file = log, append = T)
 
 # FHIR Searches -----------------------------------------------------------
 # (only for first download, then load saved bundles to save time)
+
 # Patients
 #create the search body which lists all the found Patient IDs and restricts on specified parameters (birthdate)
 #use "_id" as global FHIR-Search parameter in patient resource
@@ -177,8 +180,7 @@ body_patient <- fhir_body(content = list("_id" = paste(patient_ids_with_conditio
 #create request for specified URL and Resource
 request_patients <- fhir_url(url = diz_url, resource = "Patient")
 #Execute the fhir search using the above defined request and body
-bundles_patient <- fhir_search(request = request_patients, body = body_patient)
-
+bundles_patient <- fhir_search(request = request_patients, body = body_patient, max_bundles = bundle_limit)
 #give out statements after certain chunks to document progress
 write(paste("Finished Search for Patient-Ressources at", Sys.time(), "\n"), file = log, append = T)
 write(paste(length(bundles_patient), " Bundles for the Patient-Ressource were found \n"), file = log, append = T)
@@ -190,8 +192,7 @@ write(paste(length(bundles_patient), " Bundles for the Patient-Ressource were fo
 body_conditions <- fhir_body(content = list("subject" = patient_ids_with_conditions))
 request_conditions <- fhir_url(url = diz_url, resource = "Condition")
 #code or normcode?; normcode appears to work
-bundles_condition <- fhir_search(request = request_conditions)
-
+bundles_condition <- fhir_search(request = request_conditions, body = body_conditions, max_bundles = bundle_limit)
 #give out statements after certain chunks to document progress
 write("Finished Search for Condition-Ressources at", Sys.time(), "\n", file = log, append = T)
 write(paste(length(bundles_condition), " Bundles for the Condition-Ressource were found \n"), file = log, append = T)
@@ -201,8 +202,7 @@ write(paste(length(bundles_condition), " Bundles for the Condition-Ressource wer
 #use "subject" as FHIR search parameter for Observation resource
 body_observation <- fhir_body(content = list("subject" = paste(patient_ids_with_conditions, collapse = ","), "code" = LOINC_codes_all))
 request_observations <- fhir_url(url = diz_url, resource = "Observation")
-bundles_observation <- fhir_search(request = request_observations, body = body_observation)
-
+bundles_observation <- fhir_search(request = request_observations, body = body_observation, max_bundles = bundle_limit)
 #give out statements after certain chunks to document progress
 write(paste("Finished Search for Observation-Ressources at", Sys.time(), "\n"), file = log, append = T)
 write(paste(length(bundles_observation), " Bundles for the Observation-Ressource were found \n"), file = log, append = T)
@@ -213,12 +213,10 @@ write(paste(length(bundles_observation), " Bundles for the Observation-Ressource
 #restrict data used by implementing the relevant ATC codes here -> medications_all
 body_medicationAdministration <- fhir_body(content = list("subject" = paste(patient_ids_with_conditions, collapse = ","), "medication" = medications_all))
 request_medicationAdministrations <- fhir_url(url = diz_url, resource = "MedicationAdministration")
-bundles_medicationAdministration <- fhir_search(request = request_medicationAdministrations)
-
+bundles_medicationAdministration <- fhir_search(request = request_medicationAdministrations, body = body_medicationAdministration, max_bundles = bundle_limit)
 #give out statements after certain chunks to document progress
 write(paste("Finished Search for MedicationAdministration-Ressources at", Sys.time(), "\n"), file = log, append = T)
 write(paste(length(bundles_medicationAdministration), " Bundles for the MedicationAdministration-Ressource were found \n"), file = log, append = T)
-
 
 #save for later loading, and to check for entries
 fhir_save(bundles = bundles_medicationAdministration, directory = "XML_Bundles/bundles_medicationAdministration")
@@ -244,7 +242,7 @@ if(check_fhir_bundles_in_folder("XML_Bundles/bundles_medicationAdministration") 
 if(contains_ids(medicationAdministration_ids)) {
   body_medication <- fhir_body(content = list("_id" = paste(medicationAdministration_ids, collapse = ","), "code" = medications_all))
   request_medications <- fhir_url(url = diz_url, resource = "Medication")
-  bundles_medication <- fhir_search(request = request_medications, body = body_medication)
+  bundles_medication <- fhir_search(request = request_medications, body = body_medication, max_bundles = bundle_limit)
 } else {
     message("There are no entries in the Resource medicationAdministrations, therefore the corresponding Medications could not be retrieved")
 }
@@ -379,7 +377,7 @@ colnames(table_observations)[colnames(table_observations) == "COMPONENT"] <- "ob
 
 #remove "Patient/" prefix from subject-column to allow merging of tables, same for medication if necessary
 table_conditions$condition_subject <- sub("Patient/", "", table_conditions$condition_subject) 
-table_observations$observation_subject <- sub("Patient/", "", table_conditions$observation_subject)
+table_observations$observation_subject <- sub("Patient/", "", table_observations$observation_subject)
 table_medicationAdministrations$medicationAdministration_subject <- sub("Patient/", "", table_medicationAdministrations$medicationAdministration_subject) 
 table_medicationAdministrations$medicationAdministration_medication_reference <- sub("Medication/", "", table_medicationAdministrations$medicationAdministration_medication_reference)
 
