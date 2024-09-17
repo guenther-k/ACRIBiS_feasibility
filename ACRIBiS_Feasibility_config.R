@@ -22,4 +22,4 @@ password <- NULL #zB "mypassword"
 token <- NULL #zB "mytoken"
 
 #add maximum number of bundles to enable faster run times for testing (e.g. 10 or 20)
-bundle_limit <- FALSE
+bundle_limit <- Inf
