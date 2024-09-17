@@ -106,7 +106,7 @@ icd10_codes_patient_conditions <- icd_expand(icd10_codes_patient_conditions, col
 #use "code" as FHIR-Search parameter for Condition resource
 body_conditions <- fhir_body(content = list("code" = paste(icd10_codes_patient_conditions$icd_normcode, collapse = ",")))
 request_conditions <- fhir_url(url = diz_url, resource = "Condition")
-bundles_condition <- fhir_search(request = request_conditions, body = body_conditions)
+bundles_condition <- fhir_search(request = request_conditions, body = body_conditions, username = username, password = password)
 # no saving necessary
 table_conditions <- fhir_crack(bundles = bundles_condition, design = tabledescription_condition, verbose = 1)
 
@@ -181,7 +181,7 @@ body_patient <- fhir_body(content = list("_id" = paste(patient_ids_with_conditio
 #create request for specified URL and Resource
 request_patients <- fhir_url(url = diz_url, resource = "Patient")
 #Execute the fhir search using the above defined request and body
-bundles_patient <- fhir_search(request = request_patients, body = body_patient, max_bundles = bundle_limit)
+bundles_patient <- fhir_search(request = request_patients, body = body_patient, max_bundles = bundle_limit, username = username, password = password)
 #give out statements after certain chunks to document progress
 write(paste("Finished Search for Patient-Ressources at", Sys.time(), "\n"), file = log, append = T)
 write(paste(length(bundles_patient), " Bundles for the Patient-Ressource were found \n"), file = log, append = T)
@@ -193,7 +193,7 @@ write(paste(length(bundles_patient), " Bundles for the Patient-Ressource were fo
 body_conditions <- fhir_body(content = list("subject" = patient_ids_with_conditions))
 request_conditions <- fhir_url(url = diz_url, resource = "Condition")
 #code or normcode?; normcode appears to work
-bundles_condition <- fhir_search(request = request_conditions, body = body_conditions, max_bundles = bundle_limit)
+bundles_condition <- fhir_search(request = request_conditions, body = body_conditions, max_bundles = bundle_limit, username = username, password = password)
 #give out statements after certain chunks to document progress
 write("Finished Search for Condition-Ressources at", Sys.time(), "\n", file = log, append = T)
 write(paste(length(bundles_condition), " Bundles for the Condition-Ressource were found \n"), file = log, append = T)
@@ -203,7 +203,7 @@ write(paste(length(bundles_condition), " Bundles for the Condition-Ressource wer
 #use "subject" as FHIR search parameter for Observation resource
 body_observation <- fhir_body(content = list("subject" = paste(patient_ids_with_conditions, collapse = ","), "code" = LOINC_codes_all))
 request_observations <- fhir_url(url = diz_url, resource = "Observation")
-bundles_observation <- fhir_search(request = request_observations, body = body_observation, max_bundles = bundle_limit)
+bundles_observation <- fhir_search(request = request_observations, body = body_observation, max_bundles = bundle_limit, username = username, password = password)
 #give out statements after certain chunks to document progress
 write(paste("Finished Search for Observation-Ressources at", Sys.time(), "\n"), file = log, append = T)
 write(paste(length(bundles_observation), " Bundles for the Observation-Ressource were found \n"), file = log, append = T)
@@ -214,7 +214,7 @@ write(paste(length(bundles_observation), " Bundles for the Observation-Ressource
 #restrict data used by implementing the relevant ATC codes here -> medications_all
 body_medicationAdministration <- fhir_body(content = list("subject" = paste(patient_ids_with_conditions, collapse = ","), "medication" = medications_all))
 request_medicationAdministrations <- fhir_url(url = diz_url, resource = "MedicationAdministration")
-bundles_medicationAdministration <- fhir_search(request = request_medicationAdministrations, body = body_medicationAdministration, max_bundles = bundle_limit)
+bundles_medicationAdministration <- fhir_search(request = request_medicationAdministrations, body = body_medicationAdministration, max_bundles = bundle_limit, username = username, password = password)
 #give out statements after certain chunks to document progress
 write(paste("Finished Search for MedicationAdministration-Ressources at", Sys.time(), "\n"), file = log, append = T)
 write(paste(length(bundles_medicationAdministration), " Bundles for the MedicationAdministration-Ressource were found \n"), file = log, append = T)
@@ -243,7 +243,7 @@ if(check_fhir_bundles_in_folder("XML_Bundles/bundles_medicationAdministration") 
 if(contains_ids(medicationAdministration_ids)) {
   body_medication <- fhir_body(content = list("_id" = paste(medicationAdministration_ids, collapse = ","), "code" = medications_all))
   request_medications <- fhir_url(url = diz_url, resource = "Medication")
-  bundles_medication <- fhir_search(request = request_medications, body = body_medication, max_bundles = bundle_limit)
+  bundles_medication <- fhir_search(request = request_medications, body = body_medication, max_bundles = bundle_limit, username = username, password = password)
 } else {
     message("There are no entries in the Resource medicationAdministrations, therefore the corresponding Medications could not be retrieved")
 }
@@ -680,9 +680,9 @@ write.csv(navalues_condition_columns, "Output/number_of_missing_values_condition
 write.csv(navalues_observation_columns, "Output/number_of_missing_values_observation_columns.csv")
 write.csv(navalues_medication_columns, "Output/number_of_missing_medication_patient_columns.csv")
 #percentage of patients with missings in crucial columns
-write.csv(precentage_patients_with_no_code_condition, "Output/percentage_patients_missing_condition_code")
-write.csv(precentage_patients_with_no_code_observation, "Output/percentage_patients_missing_observation_code")
-write.csv(precentage_patients_with_no_code_medication, "Output/percentage_patients_missing_medication_code")
+write.csv(precentage_patients_with_no_code_condition, "Output/percentage_patients_missing_condition_code.csv")
+write.csv(precentage_patients_with_no_code_observation, "Output/percentage_patients_missing_observation_code.csv")
+write.csv(precentage_patients_with_no_code_medication, "Output/percentage_patients_missing_medication_code.csv")
 
 #combinations of conditions corresponding observations and medications
 write.csv(patients_with_condition_observation_medication, "Output/number_of_patients_per_combinations_of_condition_observation_medication.csv")
