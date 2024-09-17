@@ -1,12 +1,13 @@
 source("ACRIBiS_Feasibility_install_R_packages.R")
 source("ACRIBiS_Feasibility_support_functions.R")
+source("ACRIBiS_Feasibility_config.R")
 
 #source config
-if(file.exists("ACRIBiS_Feasibility_config.R")&&!dir.exists("ACRIBiS_Feasibility_config.R")){
-  source("ACRIBiS_Feasibility_config.R")
-}else{
-  source("config.R.default")  
-}
+# if(file.exists("ACRIBiS_Feasibility_config.R")&&!dir.exists("ACRIBiS_Feasibility_config.R")){
+#   source("ACRIBiS_Feasibility_config.R")
+# }else{
+#   source("config.R.default")  
+# }
 
 
 #create log file, named for date and time of creation
