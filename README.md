@@ -5,4 +5,6 @@ In Addition you will need the folder with LOINC-Codes in the directory from whic
 Steps
 1. add your FHIR-server address in the config file under "diz_url" and run the script
 2. run the install_packages script
-3. run the analysis script
+3. Download the LOINC-Codes from https://loinc.org/file-access/?download-id=470626 (Free Account might be necessary) and place the folder in the working directory. Unfortunately the file is too large to upload to github. The Script currently uses Version 2.78 (ln 371)
+4. run the analysis script
+
