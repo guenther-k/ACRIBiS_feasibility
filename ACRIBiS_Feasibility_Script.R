@@ -368,7 +368,7 @@ time_since_first_diagnosis_onset <- table_conditions %>%
 
 
 #import table with LOINC Code for reference, send CSV with Script, change path to be universally applicable
-loinc_codes <- read.csv("Loinc_2.76/LoincTable/Loinc.csv")
+loinc_codes <- read.csv("Loinc_2.78/LoincTable/Loinc.csv")
 #add content of LOINC codes to observation table
 table_observations <-  merge(table_observations, loinc_codes[, c("LOINC_NUM", "COMPONENT")], by.x = "observation_code", by.y = "LOINC_NUM", all.x = TRUE)
 # Rename column COMPONENT to observation_LOINC_term
