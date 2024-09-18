@@ -104,16 +104,16 @@ icd10_codes_patient_conditions <- icd_expand(icd10_codes_patient_conditions, col
 # Identify Required Patients
 #download all conditions with respective ICD10-Codes
 #use "code" as FHIR-Search parameter for Condition resource
-body_conditions <- fhir_body(content = list("code" = paste(icd10_codes_patient_conditions$icd_normcode, collapse = ",")))
-request_conditions <- fhir_url(url = diz_url, resource = "Condition")
-bundles_condition <- fhir_search(request = request_conditions, body = body_conditions, username = username, password = password)
+body_patient_conditions <- fhir_body(content = list("code" = paste(icd10_codes_patient_conditions$icd_normcode, collapse = ",")))
+request_patient_conditions <- fhir_url(url = diz_url, resource = "Condition")
+bundles_patient_conditions <- fhir_search(request = request_patient_conditions, body = body_patient_conditions, username = username, password = password)
 # no saving necessary
-table_conditions <- fhir_crack(bundles = bundles_condition, design = tabledescription_condition, verbose = 1)
+table_patient_conditions <- fhir_crack(bundles = bundles_patient_conditions, design = tabledescription_condition, verbose = 1)
 
 #search for patients who have the specified conditions
 #remove "Patient/" prefix from referenced Patient IDs
-patient_ids_with_conditions_prefix <- table_conditions$condition_subject
-patient_ids_with_conditions <- sub("Patient/", "", table_conditions$condition_subject)
+patient_ids_with_conditions_prefix <- table_patient_conditions$condition_subject
+patient_ids_with_conditions <- sub("Patient/", "", table_patient_conditions$condition_subject)
 
 
 # Lists of relevant LOINC Codes for Observations
