@@ -190,7 +190,7 @@ write(paste(length(bundles_patient), " Bundles for the Patient-Ressource were fo
 #Condition
 #now load all CONDITIONS for relevant patient IDs, to obtain other conditions (comorbidities) of relevant patients
 #use "patient" as FHIR-search parameter in Condition resource
-body_conditions <- fhir_body(content = list("subject" = paste(patient_ids_with_conditions, collapse = ",")))
+body_conditions <- fhir_body(content = list("subject" = paste(patient_ids_with_conditions)))
 request_conditions <- fhir_url(url = diz_url, resource = "Condition")
 #code or normcode?; normcode appears to work
 bundles_condition <- fhir_search(request = request_conditions, body = body_conditions, max_bundles = bundle_limit, username = username, password = password)
@@ -624,6 +624,7 @@ can_calc_smart <- table(table_can_calc$can_calc_smart_overall, useNA = "ifany")
 can_calc_maggic <- table(table_can_calc$can_calc_maggic_overall, useNA = "ifany")
 can_calc_charge <- table(table_can_calc$can_calc_charge_overall, useNA = "ifany")
 
+
 #cross table for eligibility and variables availability (can_calc) for each Score
 #create combined table from eligibility and can_calc
 table_eligibility_can_calc <- merge(table_eligibility, table_can_calc, by = "patient_identifier")
@@ -634,8 +635,13 @@ crosstabs_eligibility_availability_maggic <- table(table_eligibility_can_calc$el
 crosstabs_eligibility_availability_charge <- table(table_eligibility_can_calc$eligible_charge_overall, table_eligibility_can_calc$can_calc_charge_overall, dnn = list("Eligible", "Calculable"))
 
 #Assumption: if Medications or Conditions are missing, the patient does not have them (sensitivity?) non-existence cannot be confirmed by routine data, correct?
-table_eligibility$any_score_eligible <- ifelse(table_eligibility$eligible_chadsvasc_overall == 1 | table_eligibility$eligible_smart_overall == 1 | table_eligibility$eligible_maggic_overall == 1 | table_eligibility$eligible_charge_overall == 1, 1, 0)
-table_can_calc$any_score_can_calc <- ifelse(table_can_calc$can_calc_chadsvasc_overall == 1 | table_can_calc$can_calc_smart_overall == 1 | table_can_calc$can_calc_maggic_overall == 1 | table_can_calc$can_calc_charge_overall == 1, 1, 0)
+# table_eligibility$any_score_eligible <- ifelse(table_eligibility$eligible_chadsvasc_overall == 1 | table_eligibility$eligible_smart_overall == 1 | table_eligibility$eligible_maggic_overall == 1 | table_eligibility$eligible_charge_overall == 1, 1, 0)
+# table_can_calc$any_score_can_calc <- ifelse(table_can_calc$can_calc_chadsvasc_overall == 1 | table_can_calc$can_calc_smart_overall == 1 | table_can_calc$can_calc_maggic_overall == 1 | table_can_calc$can_calc_charge_overall == 1, 1, 0)
+#alternative to prevent error
+table_eligibility$any_score_eligible <- rowSums(table_eligibility[, c("eligible_chadsvasc_overall", "eligible_smart_overall", "eligible_maggic_overall", "eligible_charge_overall")], na.rm = TRUE) > 0
+table_can_calc$any_score_can_calc <- rowSums(table_can_calc[, c("can_calc_chadsvasc_overall", "can_calc_smart_overall", "can_calc_maggic_overall", "can_calc_charge_overall")], na.rm = TRUE) > 0
+
+
 
 #Percentage of patients who are eligible for at least 1 score
 prob_eligibility_any_score <- prop.table(table(table_eligibility_can_calc$any_score_eligible))
