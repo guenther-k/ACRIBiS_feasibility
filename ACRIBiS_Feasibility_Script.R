@@ -106,7 +106,7 @@ icd10_codes_patient_conditions <- icd_expand(icd10_codes_patient_conditions, col
 #use "code" as FHIR-Search parameter for Condition resource
 body_patient_conditions <- fhir_body(content = list("code" = paste(icd10_codes_patient_conditions$icd_normcode, collapse = ",")))
 request_patient_conditions <- fhir_url(url = diz_url, resource = "Condition")
-bundles_patient_conditions <- fhir_search(request = request_patient_conditions, body = body_patient_conditions, username = username, password = password)
+bundles_patient_conditions <- fhir_search(request = request_patient_conditions, body = body_patient_conditions, max_bundles = bundle_limit, username = username, password = password)
 # no saving necessary
 table_patient_conditions <- fhir_crack(bundles = bundles_patient_conditions, design = tabledescription_condition, verbose = 1)
 
@@ -212,7 +212,10 @@ write(paste(length(bundles_observation), " Bundles for the Observation-Ressource
 # medicationAdministration
 #use "subject" as FHIR-Search parameter in medicationAdministration resource
 #restrict data used by implementing the relevant ATC codes here -> medications_all
+
+#ggf medication weglassen oder Verknüpfte Anfrage?
 body_medicationAdministration <- fhir_body(content = list("subject" = paste(patient_ids_with_conditions, collapse = ","), "medication" = medications_all))
+
 request_medicationAdministrations <- fhir_url(url = diz_url, resource = "MedicationAdministration")
 bundles_medicationAdministration <- fhir_search(request = request_medicationAdministrations, body = body_medicationAdministration, max_bundles = bundle_limit, username = username, password = password)
 #give out statements after certain chunks to document progress
@@ -514,11 +517,15 @@ table_eligibility <- merge(table_eligibility, table_conditions_merge, by.x = "pa
 table_eligibility <- merge(table_eligibility, table_observations_merge, by.x = "patient_identifier", by.y = "observation_subject", all.x = TRUE)
 table_eligibility <- merge(table_eligibility, table_meds_merge, by.x = "patient_identifier", by.y = "medicationAdministration_subject", all.x = TRUE)
 
+
+#take into account the possiblity, that certain columns do no exist, if data is unavailable (eg medication)
+eligibility_required_columns <- c("eligible_patient_chadsvasc", "eligible_conditions_chadsvasc", "eligible_observations_chadsvasc", "eligible_meds_chadsvasc")
+eligibility_available_columns <- eligibility_required_columns[eligibility_required_columns %in% colnames(table_eligibility)]
 #create summary column for eligibility (if any 0, then 0; if no 0s but any NAs, then NA, if no 0s or NAs then 1)
-table_eligibility$eligible_chadsvasc_overall <- apply(table_eligibility[,c("eligible_patient_chadsvasc", "eligible_conditions_chadsvasc", "eligible_observations_chadsvasc", "eligible_meds_chadsvasc")], 1, function(x) ifelse(any(x == 0), 0, ifelse(any(is.na(x)), NA, 1)))
-table_eligibility$eligible_smart_overall <- apply(table_eligibility[,c("eligible_patient_smart", "eligible_conditions_smart", "eligible_observations_smart", "eligible_meds_smart")], 1, function(x) ifelse(any(x == 0), 0, ifelse(any(is.na(x)), NA, 1)))
-table_eligibility$eligible_maggic_overall <- apply(table_eligibility[,c("eligible_patient_maggic", "eligible_conditions_maggic", "eligible_observations_maggic", "eligible_meds_maggic")], 1, function(x) ifelse(any(x == 0), 0, ifelse(any(is.na(x)), NA, 1)))
-table_eligibility$eligible_charge_overall <- apply(table_eligibility[,c("eligible_patient_charge", "eligible_conditions_charge", "eligible_observations_charge", "eligible_meds_charge")], 1, function(x) ifelse(any(x == 0), 0, ifelse(any(is.na(x)), NA, 1)))
+table_eligibility$eligible_chadsvasc_overall <- apply(table_eligibility[,eligibility_available_columns], 1, function(x) ifelse(any(x == 0), 0, ifelse(any(is.na(x)), NA, 1)))
+table_eligibility$eligible_smart_overall <- apply(table_eligibility[,eligibility_available_columns], 1, function(x) ifelse(any(x == 0), 0, ifelse(any(is.na(x)), NA, 1)))
+table_eligibility$eligible_maggic_overall <- apply(table_eligibility[,eligibility_available_columns], 1, function(x) ifelse(any(x == 0), 0, ifelse(any(is.na(x)), NA, 1)))
+table_eligibility$eligible_charge_overall <- apply(table_eligibility[,eligibility_available_columns], 1, function(x) ifelse(any(x == 0), 0, ifelse(any(is.na(x)), NA, 1)))
 
 
 
