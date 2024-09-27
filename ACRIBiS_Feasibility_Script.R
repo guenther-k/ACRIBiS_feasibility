@@ -53,7 +53,7 @@ tabledescription_observation <- fhir_table_description(
 )
 ## medicationAdministration
 tabledescription_medicationAdministration <- fhir_table_description(
-  resource = "medicationAdministration",
+  resource = "MedicationAdministration",
   cols = c(medicationAdministration_identifier            = "id",
            medicationAdministration_subject               = "subject/reference", 
            medicationAdministration_status                = "status",
