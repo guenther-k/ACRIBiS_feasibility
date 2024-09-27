@@ -58,8 +58,8 @@ tabledescription_medicationAdministration <- fhir_table_description(
            medicationAdministration_subject               = "subject/reference", 
            medicationAdministration_status                = "status",
            medicationAdministration_medication_reference  = "medicationReference/reference",
-           medicationAdministration_effective_dateTime    = "effective/effectivedateTime",
-           medicationAdministration_effective_period      = "effective/effectivePeriod"
+           medicationAdministration_effective_dateTime    = "effectivedateTime",
+           medicationAdministration_effective_period      = "effectivePeriod"
   )
 )
 ## Medication
@@ -190,7 +190,7 @@ write(paste(length(bundles_patient), " Bundles for the Patient-Ressource were fo
 #Condition
 #now load all CONDITIONS for relevant patient IDs, to obtain other conditions (comorbidities) of relevant patients
 #use "patient" as FHIR-search parameter in Condition resource
-body_conditions <- fhir_body(content = list("subject" = paste(patient_ids_with_conditions, collapse = ",")))
+body_conditions <- fhir_body(content = list("subject" = paste(patient_ids_with_conditions)))
 request_conditions <- fhir_url(url = diz_url, resource = "Condition")
 #code or normcode?; normcode appears to work
 bundles_condition <- fhir_search(request = request_conditions, body = body_conditions, max_bundles = bundle_limit, username = username, password = password)
