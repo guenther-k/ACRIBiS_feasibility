@@ -223,8 +223,8 @@ write(paste(length(bundles_medicationAdministration), " Bundles for the Medicati
 
 #save for later loading, and to check for entries
 fhir_save(bundles = bundles_medicationAdministration, directory = "XML_Bundles/bundles_medicationAdministration")
-#crack immediately to provide ids for medication-search
 
+#crack immediately to provide ids for medication-search
 if(check_fhir_bundles_in_folder("XML_Bundles/bundles_medicationAdministration") == FALSE) {
   message("The bundle you are trying to crack is empty. This will result in an error. Therefore the bundle will not be cracked.")
   #create empty list of medications in the medicationAdministrations of the Patients to fill in next step
@@ -615,13 +615,13 @@ table_can_calc <- merge(table_can_calc, table_observations_merge, by.x = "patien
 table_can_calc <- merge(table_can_calc, table_meds_merge, by.x = "patient_identifier", by.y = "medicationAdministration_subject", all.x = TRUE)
 
 # # ability of calculating scores (all parameters that need be available, are available), absence of paramters is interpreted as not present in patient
-can_calc_required_columns_chadsvasc <- c("eligible_patient_chadsvasc", "eligible_conditions_chadsvasc", "eligible_observations_chadsvasc", "eligible_meds_chadsvasc")
+can_calc_required_columns_chadsvasc <- c("can_calc_patient_chadsvasc", "can_calc_conditions_chadsvasc", "can_calc_observations_chadsvasc", "can_calc_meds_chadsvasc")
 can_calc_available_columns_chadsvasc <- can_calc_required_columns_chadsvasc[can_calc_required_columns_chadsvasc %in% colnames(table_can_calc)]
-can_calc_required_columns_smart <- c("eligible_patient_smart", "eligible_conditions_smart", "eligible_observations_smart", "eligible_meds_smart")
+can_calc_required_columns_smart <- c("can_calc_patient_smart", "can_calc_conditions_smart", "can_calc_observations_smart", "can_calc_meds_smart")
 can_calc_available_columns_smart <- can_calc_required_columns_smart[can_calc_required_columns_smart %in% colnames(table_can_calc)]
-can_calc_required_columns_maggic <- c("eligible_patient_maggic", "eligible_conditions_maggic", "eligible_observations_maggic", "eligible_meds_maggic")
+can_calc_required_columns_maggic <- c("can_calc_patient_maggic", "can_calc_conditions_maggic", "can_calc_observations_maggic", "can_calc_meds_maggic")
 can_calc_available_columns_maggic <- can_calc_required_columns_maggic[can_calc_required_columns_maggic %in% colnames(table_can_calc)]
-can_calc_required_columns_charge <- c("eligible_patient_charge", "eligible_conditions_charge", "eligible_observations_charge", "eligible_meds_charge")
+can_calc_required_columns_charge <- c("can_calc_patient_charge", "can_calc_conditions_charge", "can_calc_observations_charge", "can_calc_meds_charge")
 can_calc_available_columns_charge <- can_calc_required_columns_charge[can_calc_required_columns_charge %in% colnames(table_can_calc)]
 
 #create summary column for eligibility (if any 0, then 0; if no 0s but any NAs, then NA, if no 0s or NAs then 1)
