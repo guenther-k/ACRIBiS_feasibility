@@ -211,7 +211,6 @@ write(paste(length(bundles_observation), " Bundles for the Observation-Ressource
 
 # medicationAdministration
 #use "subject" as FHIR-Search parameter in medicationAdministration resource
-#restrict data used by implementing the relevant ATC codes here -> medications_all
 
 #1. search for all medicationAdministrations of the patients
 body_medicationAdministration <- fhir_body(content = list("subject" = paste(patient_ids_with_conditions, collapse = ",")))
@@ -220,7 +219,6 @@ bundles_medicationAdministration <- fhir_search(request = request_medicationAdmi
 #give out statements after certain chunks to document progress
 write(paste("Finished Search for MedicationAdministration-Ressources at", Sys.time(), "\n"), file = log, append = T)
 write(paste(length(bundles_medicationAdministration), " Bundles for the MedicationAdministration-Ressource were found \n"), file = log, append = T)
-
 #save for later loading, and to check for entries
 fhir_save(bundles = bundles_medicationAdministration, directory = "XML_Bundles/bundles_medicationAdministration")
 
@@ -229,6 +227,14 @@ if(check_fhir_bundles_in_folder("XML_Bundles/bundles_medicationAdministration") 
   message("The bundle you are trying to crack is empty. This will result in an error. Therefore the bundle will not be cracked.")
   #create empty list of medications in the medicationAdministrations of the Patients to fill in next step
   medicationAdministration_ids <- NA
+  table_medicationAdministrations <- data.frame(medicationAdministration_identifier            = character(),
+                                                medicationAdministration_subject               = character(), 
+                                                medicationAdministration_status                = character(),
+                                                medicationAdministration_medication_reference  = character(),
+                                                medicationAdministration_effective_dateTime    = character(),
+                                                medicationAdministration_effective_period      = character(),
+                                                stringsAsFactors = FALSE)
+
 } else {
   message("Cracking ", length(bundles_medicationAdministration), " medicationAdministration Bundles.\n")
   table_medicationAdministrations <- fhir_crack(bundles = bundles_medicationAdministration, design = tabledescription_medicationAdministration, verbose = 1)
@@ -250,6 +256,15 @@ fhir_save(bundles = bundles_medication, directory = "XML_Bundles/bundles_medicat
 #check data availability and crack bundles to extract medication_ids
 if(check_fhir_bundles_in_folder("XML_Bundles/bundles_medication") == FALSE) {
   message("The bundle you are trying to crack is empty. This will result in an error. Therefore the bundle will not be cracked.")
+  table_medications <- data.frame(medication_identifier      = character(),
+                                  medication_system          = character(),
+                                  medication_code            = character(),
+                                  medication_display         = character(),
+                                  medication_text            = character(),
+                                  medication_strength        = character(),
+                                  medication_strength_per    = character(),
+                                  medication_unit            = character(),
+                                  stringsAsFactors = FALSE)
 } else {
   message("Cracking ", length(bundles_medication), " Medication Bundles.\n")
   table_medications <- fhir_crack(bundles = bundles_medication, design = tabledescription_medication, verbose = 1)
@@ -263,6 +278,7 @@ write(paste(length(bundles_medication), " Bundles for the Medication-Ressource w
 
 #3. combine tables and retain the medicationAdministrations with the relevant medications
 #merge medication information with data in medicationAdministration
+#restrict data used by implementing the relevant ATC codes here -> medications_all
 if(check_fhir_bundles_in_folder("XML_Bundles/bundles_medicationAdministration") == FALSE) {
   message("One of the tables you are trying to merge does not exist (Possibly due to empty resources). Therefore the merge-statement will not be carried out.")
 } else {
@@ -485,7 +501,11 @@ table_conditions$eligible_conditions_chadsvasc <- ifelse(table_conditions$condit
 #no eligibility criteria regarding observations for chadsvasc
 table_observations$eligible_observations_chadsvasc <- 1
 #no eligibility criteria regarding observations for chadsvasc
-table_meds$eligible_meds_chadsvasc <- 1
+table_meds$eligible_meds_chadsvasc <- if(nrow(table_meds) == 0) {
+  table_meds$eligible_meds_chadsvasc <- numeric(0)
+} else {
+  table_meds$eligible_meds_chadsvasc <- 1
+  }
 
 #SMART
 #between 40 and 80 xears old (validated population)
@@ -495,7 +515,12 @@ table_conditions$eligible_conditions_smart <- ifelse(table_conditions$condition_
 #no eligibility criteria regarding observations for smart
 table_observations$eligible_observations_smart <- 1
 #no eligibility criteria regarding observations for smart
-table_meds$eligible_meds_smart <- 1
+if(nrow(table_meds) == 0) {
+  table_meds$eligible_meds_smart <- numeric(0)
+} else {
+    table_meds$eligible_meds_smart <- 1
+  }
+
 
 #MAGGIC
 #18years or older
@@ -505,7 +530,11 @@ table_conditions$eligible_conditions_maggic <- ifelse(table_conditions$condition
 #no eligibility criteria regarding observations for maggic
 table_observations$eligible_observations_maggic <- 1
 #no eligibility criteria regarding medications for maggic
-table_meds$eligible_meds_maggic <- 1
+if(nrow(table_meds) == 0) {
+  table_meds$eligible_meds_maggic <- numeric(0)
+} else {
+  table_meds$eligible_meds_maggic <- 1
+  }
 
 #CHARGE-AF
 #between 46 and 94 years
@@ -524,7 +553,11 @@ table_observations$eligible_observations_charge <- case_when( table_observations
                                                              
                                                              TRUE ~ 1)
 #no eligibility criteria regarding medications for charge
-table_meds$eligible_meds_charge <- 1
+if(nrow(table_meds) == 0) {
+  table_meds$eligible_meds_charge <- numeric(0)
+} else {
+  table_meds$eligible_meds_charge <- 1
+  }
 
 
 #create tables with selected columns for merge
@@ -542,6 +575,13 @@ table_eligibility <- table_patients
 table_eligibility <- merge(table_eligibility, table_conditions_merge, by.x = "patient_identifier", by.y = "condition_subject", all.x = TRUE)
 table_eligibility <- merge(table_eligibility, table_observations_merge, by.x = "patient_identifier", by.y = "observation_subject", all.x = TRUE)
 table_eligibility <- merge(table_eligibility, table_meds_merge, by.x = "patient_identifier", by.y = "medicationAdministration_subject", all.x = TRUE)
+
+#hier alle Einträge die nicht 0 sind auf 1 setzen, da wenn medication nich vorhanden sind, davon ausgegangen werden muss, dass sie nicht verabreicht werden
+table_eligibility$eligible_meds_chadsvasc <- if(is.na(table_eligibility$eligible_meds_chadsvasc)){table_eligibility$eligible_meds_chadsvasc <- 1}  
+table_eligibility$eligible_meds_smart <- if(is.na(table_eligibility$eligible_meds_smart)){table_eligibility$eligible_meds_smart <- 1}
+table_eligibility$eligible_meds_maggic <- if(is.na(table_eligibility$eligible_meds_maggic)){table_eligibility$eligible_meds_maggic <- 1}
+table_eligibility$eligible_meds_charge <- if(is.na(table_eligibility$eligible_meds_charge)){table_eligibility$eligible_meds_charge <- 1}
+
 
 # #take into account the possibility, that certain columns do no exist, if data is unavailable (eg medication)
 eligibility_required_columns_chadsvasc <- c("eligible_patient_chadsvasc", "eligible_conditions_chadsvasc", "eligible_observations_chadsvasc", "eligible_meds_chadsvasc")
@@ -586,16 +626,25 @@ table_observations <- table_observations %>%
   mutate(can_calc_observations_charge = ifelse((any(observation_code %in% LOINC_codes_bmi) | (any(observation_code %in% LOINC_codes_height) & any(observation_code %in% LOINC_codes_weight))), 1, 0)) %>%
   ungroup()
 
-#conditions and medications are presumed to be absent if not available in data just give value of 1
+#conditions and medications are presumed to be not present in the patient if not available in data just give value of 1
 table_conditions$can_calc_conditions_chadsvasc <- 1
 table_conditions$can_calc_conditions_smart <- 1
 table_conditions$can_calc_conditions_maggic <- 1
 table_conditions$can_calc_conditions_charge <- 1
 
-table_meds$can_calc_meds_chadsvasc <- 1
-table_meds$can_calc_meds_smart <- 1
-table_meds$can_calc_meds_maggic <- 1
-table_meds$can_calc_meds_charge <- 1
+#accomodaet empty medication tables
+if(nrow(table_meds) == 0) {
+  table_meds$can_calc_meds_chadsvasc <- numeric(0)
+  table_meds$can_calc_meds_smart <- numeric(0)
+  table_meds$can_calc_meds_maggic <- numeric(0)
+  table_meds$can_calc_meds_charge <- numeric(0)
+} else {
+  table_meds$can_calc_meds_chadsvasc <- 1
+  table_meds$can_calc_meds_smart <- 1
+  table_meds$can_calc_meds_maggic <- 1
+  table_meds$can_calc_meds_charge <- 1
+}
+
 
 #create tables with selected columns for merge
 table_conditions_merge <- table_conditions[, c("condition_subject", "can_calc_conditions_chadsvasc", "can_calc_conditions_smart", "can_calc_conditions_maggic", "can_calc_conditions_charge")]
@@ -614,7 +663,7 @@ table_can_calc <- merge(table_can_calc, table_conditions_merge, by.x = "patient_
 table_can_calc <- merge(table_can_calc, table_observations_merge, by.x = "patient_identifier", by.y = "observation_subject", all.x = TRUE)
 table_can_calc <- merge(table_can_calc, table_meds_merge, by.x = "patient_identifier", by.y = "medicationAdministration_subject", all.x = TRUE)
 
-# # ability of calculating scores (all parameters that need be available, are available), absence of paramters is interpreted as not present in patient
+# ability of calculating scores (all parameters that need to be available, are available), absence of parameters is interpreted as not present in patient
 can_calc_required_columns_chadsvasc <- c("can_calc_patient_chadsvasc", "can_calc_conditions_chadsvasc", "can_calc_observations_chadsvasc", "can_calc_meds_chadsvasc")
 can_calc_available_columns_chadsvasc <- can_calc_required_columns_chadsvasc[can_calc_required_columns_chadsvasc %in% colnames(table_can_calc)]
 can_calc_required_columns_smart <- c("can_calc_patient_smart", "can_calc_conditions_smart", "can_calc_observations_smart", "can_calc_meds_smart")
