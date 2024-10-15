@@ -11,9 +11,12 @@ convert_date_to_year <- function(birthdate) {
 #Cracking empty bundles results in script termination; therefore bundles have to be checked for entries
 #Data Availability in Bundles is based on entries; if there is no corresponding data in FHIR Server, bundles will be present but without entries
 #Function to check if a FHIR bundle is empty
-is_fhir_bundle_empty <- function(file_path) {
+is_fhir_bundle_empty <- function(folder_path) {
+  
+  files <- list.files(path = folder_path, pattern = "\\.xml$", full.names = TRUE)
+  
   #Read the XML file
-  fhir_bundle <- read_xml(file_path)
+  fhir_bundle <- read_xml(files[1])
   
   #Check if the 'entry' node is present and has any entries
   entries <- xml_find_all(fhir_bundle, "//entry")

@@ -276,17 +276,12 @@ write(paste("Finished Search for Medication-Ressources at", Sys.time(), "\n"), f
 write(paste(length(bundles_medication), " Bundles for the Medication-Ressource were found \n"), file = log, append = T)
 
 
-#3. combine tables and retain the medicationAdministrations with the relevant medications
+#3. combine tables and retain the medicationAdministrations with the relevant medications (removed if-clause, as table will exist in any case (might be empty though))
 #merge medication information with data in medicationAdministration
-#restrict data used by implementing the relevant ATC codes here -> medications_all
-if(check_fhir_bundles_in_folder("XML_Bundles/bundles_medicationAdministration") == FALSE) {
-  message("One of the tables you are trying to merge does not exist (Possibly due to empty resources). Therefore the merge-statement will not be carried out.")
-} else {
-  #combine medication statement with the respective medications
   table_meds <- merge(table_medicationAdministrations, table_medications, by.x = "medicationAdministration_medication_reference", by.y = "medication_identifier", all.x = TRUE)
   #remove medicationAdministrations that do not concern relevant medicaitons
   table_meds <- table_meds[table_meds$medication_code %in% medications_all,]
-}
+
 
 
 #old
