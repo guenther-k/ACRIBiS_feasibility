@@ -223,7 +223,7 @@ write(paste(length(bundles_medicationAdministration), " Bundles for the Medicati
 fhir_save(bundles = bundles_medicationAdministration, directory = "XML_Bundles/bundles_medicationAdministration")
 
 #crack immediately to provide ids for medication-search
-if(check_fhir_bundles_in_folder("XML_Bundles/bundles_medicationAdministration") == FALSE) {
+if(check_fhir_bundles_in_folder("XML_Bundles/bundles_medicationAdministration") == FALSE | is_fhir_bundle_empty("XML_Bundles/bundles_medicationAdministration") == FALSE) {
   message("The bundle you are trying to crack is empty. This will result in an error. Therefore the bundle will not be cracked.")
   #create empty list of medications in the medicationAdministrations of the Patients to fill in next step
   medicationAdministration_ids <- NA
@@ -254,7 +254,7 @@ bundles_medication <- fhir_search(request = request_medications, body = body_med
 #save bundles to allow check for data
 fhir_save(bundles = bundles_medication, directory = "XML_Bundles/bundles_medication")
 #check data availability and crack bundles to extract medication_ids
-if(check_fhir_bundles_in_folder("XML_Bundles/bundles_medication") == FALSE) {
+if(check_fhir_bundles_in_folder("XML_Bundles/bundles_medication") == FALSE | is_fhir_bundle_empty("XML_Bundles/bundles_medicationAdministration") == FALSE) {
   message("The bundle you are trying to crack is empty. This will result in an error. Therefore the bundle will not be cracked.")
   table_medications <- data.frame(medication_identifier      = character(),
                                   medication_system          = character(),
@@ -565,10 +565,10 @@ table_conditions_merge <- table_conditions[, c("condition_subject", "eligible_co
 table_observations_merge <- table_observations[, c("observation_subject", "eligible_observations_chadsvasc", "eligible_observations_smart", "eligible_observations_maggic", "eligible_observations_charge")]
 table_meds_merge <- table_meds[, c("medicationAdministration_subject", "eligible_meds_chadsvasc", "eligible_meds_smart", "eligible_meds_maggic", "eligible_meds_charge")]
 
-#reduce tables to 1 entry per patient, if any of the rows have a 0 (ineligible), the whole patient becomes ineligible (exclusion cirterion)
+#reduce tables to 1 entry per patient, if any of the rows have a 0 (ineligible), the whole patient becomes ineligible (exclusion criterion)
 table_conditions_merge <- aggregate(. ~ condition_subject, data = table_conditions_merge, FUN = function(x) ifelse(any(x == 0), 0, 1))
 table_observations_merge <- aggregate(. ~ observation_subject, data = table_observations_merge, FUN = function(x) ifelse(any(x == 0), 0, 1))
-table_meds_merge <- aggregate(. ~ medicationAdministration_subject, data = table_meds_merge, FUN = function(x) ifelse(any(x == 0), 0, 1))
+if (nrow(tables_meds_merge) > 0) {table_meds_merge <- aggregate(. ~ medicationAdministration_subject, data = table_meds_merge, FUN = function(x) ifelse(any(x == 0), 0, 1))}
 
 #test to merge eligibility columns into new table with patients
 table_eligibility <- table_patients
@@ -577,10 +577,10 @@ table_eligibility <- merge(table_eligibility, table_observations_merge, by.x = "
 table_eligibility <- merge(table_eligibility, table_meds_merge, by.x = "patient_identifier", by.y = "medicationAdministration_subject", all.x = TRUE)
 
 #hier alle Einträge die nicht 0 sind auf 1 setzen, da wenn medication nich vorhanden sind, davon ausgegangen werden muss, dass sie nicht verabreicht werden
-table_eligibility$eligible_meds_chadsvasc <- if(is.na(table_eligibility$eligible_meds_chadsvasc)){table_eligibility$eligible_meds_chadsvasc <- 1}  
-table_eligibility$eligible_meds_smart <- if(is.na(table_eligibility$eligible_meds_smart)){table_eligibility$eligible_meds_smart <- 1}
-table_eligibility$eligible_meds_maggic <- if(is.na(table_eligibility$eligible_meds_maggic)){table_eligibility$eligible_meds_maggic <- 1}
-table_eligibility$eligible_meds_charge <- if(is.na(table_eligibility$eligible_meds_charge)){table_eligibility$eligible_meds_charge <- 1}
+if (nrow(tables_meds_merge) > 0) {table_eligibility$eligible_meds_chadsvasc <- if(is.na(table_eligibility$eligible_meds_chadsvasc)){table_eligibility$eligible_meds_chadsvasc <- 1}}  
+if (nrow(tables_meds_merge) > 0) {table_eligibility$eligible_meds_smart <- if(is.na(table_eligibility$eligible_meds_smart)){table_eligibility$eligible_meds_smart <- 1}}
+if (nrow(tables_meds_merge) > 0) {table_eligibility$eligible_meds_maggic <- if(is.na(table_eligibility$eligible_meds_maggic)){table_eligibility$eligible_meds_maggic <- 1}}
+if (nrow(tables_meds_merge) > 0) {table_eligibility$eligible_meds_charge <- if(is.na(table_eligibility$eligible_meds_charge)){table_eligibility$eligible_meds_charge <- 1}}
 
 
 # #take into account the possibility, that certain columns do no exist, if data is unavailable (eg medication)
@@ -654,7 +654,7 @@ table_meds_merge <- table_meds[, c("medicationAdministration_subject", "can_calc
 #reduce tables to 1 entry per patient, if any of the rows have a 0 (ineligible), the whole patient becomes ineligible (exclusion cirterion)
 table_conditions_merge <- aggregate(. ~ condition_subject, data = table_conditions_merge, FUN = function(x) ifelse(any(x == 0), 0, 1))
 table_observations_merge <- aggregate(. ~ observation_subject, data = table_observations_merge, FUN = function(x) ifelse(any(x == 0), 0, 1))
-table_meds_merge <- aggregate(. ~ medicationAdministration_subject, data = table_meds_merge, FUN = function(x) ifelse(any(x == 0), 0, 1))
+if (nrow(tables_meds_merge) > 0) {table_meds_merge <- aggregate(. ~ medicationAdministration_subject, data = table_meds_merge, FUN = function(x) ifelse(any(x == 0), 0, 1))}
 
 #merge columns to new table can_calc, overall calculable: 0 if any 0s exist, NA if any NAs exist, 1 if all columns are 1
 #remove unwanted columns and set up new table
@@ -786,7 +786,7 @@ write.csv(precentage_patients_with_no_code_observation, "Output/percentage_patie
 write.csv(precentage_patients_with_no_code_medication, "Output/percentage_patients_missing_medication_code.csv")
 
 #combinations of conditions corresponding observations and medications
-write.csv(patients_with_condition_observation_medication, "Output/number_of_patients_per_combinations_of_condition_observation_medication.csv")
+#write.csv(patients_with_condition_observation_medication, "Output/number_of_patients_per_combinations_of_condition_observation_medication.csv")
 #descriptives (min, max, mean, n) of available Observations, Conditions and Medications
 write.csv(desc_patient_age, "Output/Descriptives_of_Patient_Age.csv")
 write.csv(desc_patient_gender, "Output/Descriptives_of_Patient_Gender.csv")
@@ -799,7 +799,7 @@ write.csv(crosstabs_eligibility_availability_smart, "Output/crosstabs_eligible_c
 write.csv(crosstabs_eligibility_availability_maggic, "Output/crosstabs_eligible_calculable_maggic.csv")
 write.csv(crosstabs_eligibility_availability_charge, "Output/crosstabs_eligible_calculable_charge.csv")
 #number of eligible and calculable observations for any Score
-write.csv(as.data.frame(crosstabs_eligibility_can_calc_any_score, "Output/crosstabs_eligible_calculable_anyscore.csv"))
+write.csv(as.data.frame(crosstabs_eligibility_can_calc_any_score, "Output/crosstabs_eligible_calculable_anyscore.csv", row.names = FALSE))
 #number patients who have NAs in any of the columns, per Risk Score
 write.csv(navalues_chadsvasc, "Output/number_of_patients_with_NAs_per_column_chadsvasc.csv")
 write.csv(navalues_smart, "Output/number_of_patients_with_NAs_per_column_smart.csv")
