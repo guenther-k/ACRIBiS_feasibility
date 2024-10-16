@@ -29,26 +29,26 @@ is_fhir_bundle_empty <- function(folder_path) {
 
 #Check bundles that are saved as XML files in the respective folder (unclear if check directly in R is possible)
 #Function to check all XML files in a folder
-check_fhir_bundles_in_folder <- function(folder_path) {
+are_fhir_bundles_in_folder <- function(folder_path) {
   # List all XML files in the folder
   xml_files <- list.files(folder_path, pattern = "\\.xml$", full.names = TRUE)
   
   # Initialize a flag for early termination
-  non_empty_found <- FALSE
+  entry_found <- FALSE
   
   # Check each file
   for (file in xml_files) {
-    if (!is_fhir_bundle_empty(file)) {
+    if (is_fhir_bundle_empty(folder_path) == FALSE) {
       cat(file, "is not empty.\n")
-      non_empty_found <- TRUE
-      return(non_empty_found)
+      entry_found <- TRUE
+      return(entry_found)
       break
     }
   }
   
-  if (!non_empty_found) {
+  if (entry_found == FALSE) {
     cat("All bundles are empty.\n")
-    return(non_empty_found)
+    return(entry_found)
   }
 }
 
