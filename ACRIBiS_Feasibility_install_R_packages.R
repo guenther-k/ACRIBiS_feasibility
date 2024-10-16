@@ -11,6 +11,7 @@ for(package in required_packages){
 
 library(fhircrackr)
 library(dplyr)
+library(tidyr)
 library(sqldf)
 library(anytime)
 library(ICD10gm)
