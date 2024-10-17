@@ -655,9 +655,9 @@ if (nrow(table_meds_merge_can_calc) > 0) {table_meds_merge_can_calc <- aggregate
 #merge columns to new table can_calc, overall calculable: 0 if any 0s exist, NA if any NAs exist, 1 if all columns are 1
 #remove unwanted columns and set up new table
 table_can_calc <- subset(table_patients, select = -c(eligible_patient_chadsvasc, eligible_patient_smart, eligible_patient_maggic, eligible_patient_charge))
-table_can_calc <- merge(table_can_calc, table_conditions_merge, by.x = "patient_identifier", by.y = "condition_subject", all.x = TRUE)
-table_can_calc <- merge(table_can_calc, table_observations_merge, by.x = "patient_identifier", by.y = "observation_subject", all.x = TRUE)
-table_can_calc <- merge(table_can_calc, table_meds_merge, by.x = "patient_identifier", by.y = "medicationAdministration_subject", all.x = TRUE)
+table_can_calc <- merge(table_can_calc, table_conditions_merge_can_calc, by.x = "patient_identifier", by.y = "condition_subject", all.x = TRUE)
+table_can_calc <- merge(table_can_calc, table_observations_merge_can_calc, by.x = "patient_identifier", by.y = "observation_subject", all.x = TRUE)
+table_can_calc <- merge(table_can_calc, table_meds_merge_can_calc, by.x = "patient_identifier", by.y = "medicationAdministration_subject", all.x = TRUE)
 
 #where medications are empty/missing, we assume that they are not present, the score can be calculated in either case (however result might not be entirely accurate)
 table_can_calc <- table_can_calc %>%
