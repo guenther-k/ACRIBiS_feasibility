@@ -381,7 +381,7 @@ write(paste("Bundles were cracked into tables at", Sys.time(), "\n"), file = log
 message("Cleaning the Data.\n")
 
 #convert birthday to birthyear and calculate age
-#fhircracking-process makes all varibales into character-variables, year should always be given first (according to Implementation Guide/FHIR), first four characters can be extracted for birthyear
+#fhircracking-process makes all variables into character-variables, year should always be given first (according to Implementation Guide/FHIR), first four characters can be extracted for birthyear
 if(are_fhir_bundles_in_folder("XML_Bundles/bundles_patient") == FALSE) {
   message("The action you trying to carry out is not possible due to empty resources. Executing the action would result in an error. Therefore the action will not be carried out.")
 } else {
@@ -737,8 +737,6 @@ crosstabs_eligibility_availability_charge <- table(table_eligibility_can_calc$el
 #alternative to prevent error
 table_eligibility_can_calc$any_score_eligible <- rowSums(table_eligibility[, c("eligible_chadsvasc_overall", "eligible_smart_overall", "eligible_maggic_overall", "eligible_charge_overall")], na.rm = TRUE) > 0
 table_eligibility_can_calc$any_score_can_calc <- rowSums(table_can_calc[, c("can_calc_chadsvasc_overall", "can_calc_smart_overall", "can_calc_maggic_overall", "can_calc_charge_overall")], na.rm = TRUE) > 0
-table_eligibility_can_calc$any_score_eligible <- factor(table_eligibility$any_score_eligible, levels = c(TRUE, FALSE))
-table_eligibility_can_calc$any_score_can_calc <- factor(table_can_calc$any_score_can_calc, levels = c(TRUE, FALSE))
 
 
 #Percentage of patients who are eligible for at least 1 score
