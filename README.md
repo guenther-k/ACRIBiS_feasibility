@@ -7,5 +7,5 @@ Steps
 2. run the install_packages script
 3. Download the LOINC-Codes from https://loinc.org/file-access/?download-id=470626 (Free Account might be necessary) and place the folder in the working directory. Unfortunately the file is too large to upload to github. The Script currently uses Version 2.78 (ln 371)
 4. run the analysis script
-5. Document your environmant and the results in corresponding file in the "Test Logs" Folder
+5. document your environmant and the results in corresponding file in the "Test Logs" Folder
 
