@@ -1,2 +1,10 @@
 Q: Why do I receive an error when installing the package anytime?
-A: The installation of package anytime might require the manual installation of the BH package, this can take a bit of time, as the package is rather large. 
+A: The installation of package anytime might require the manual installation of the BH-package
+
+  install.packages("anytime")
+
+this can take a bit of time, as the package is rather large. You can check whether the BH-package is installed by execunting 
+
+  installed.packages("BH")
+
+in the console.
