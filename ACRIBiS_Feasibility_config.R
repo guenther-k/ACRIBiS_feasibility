@@ -1,16 +1,18 @@
 # Konfigurations-Datei 
 # Bitte die folgenden Variablen entsprechend der Gegebenheiten vor Ort anpassen!
 
-# FHIR-Endpunkt
-diz_url = "https://mii-agiop-3p.life.uni-leipzig.de/blaze"
+# FHIR-Endpunkt https://mii-agiop-3p.life.uni-leipzig.de/blaze
+diz_url = "http://hapi.fhir.org/baseR4"
 
-# SSL peer verification angeschaltet lassen?
-# TRUE = peer verification anschalten, FALSE = peer verification ausschalten 
-ssl_verify_peer <- TRUE
+#add maximum number of bundles to enable faster run times for testing (e.g. 10 or 20)
+bundle_limit <- Inf
+#load bundles that are already saved, instead of searching for new ones
+search_for_bundles <- TRUE
+#save bundles from FHIR-search to avoid searching again each time; saved bundles are then loaded
+save_bundles <- FALSE
 
-# Müssen die Ressourcen nach Consent gefiltert werden?
-# -> Liegen auf dem Server Daten von Patienten mit und ohne Consent gemischt?
-filterConsent <- FALSE # wenn gefiltern werden muss: TRUE
+#set count for how many resources can be filled into one bundle response (default most often 50); depends on FHIR-Server Settings
+page_count <- as.character(50)
 
 # Authentifizierung
 # Falls Authentifizierung, bitte entsprechend anpassen (sonst ignorieren):
@@ -21,5 +23,14 @@ password <- NULL #zB "mypassword"
 # Alternativ: Token für Bearer Token Authentifizierung
 token <- NULL #zB "mytoken"
 
-#add maximum number of bundles to enable faster run times for testing (e.g. 10 or 20)
-bundle_limit <- Inf
+
+# SSL peer verification angeschaltet lassen?
+# TRUE = peer verification anschalten, FALSE = peer verification ausschalten 
+ssl_verify_peer <- TRUE
+
+# Müssen die Ressourcen nach Consent gefiltert werden?
+# -> Liegen auf dem Server Daten von Patienten mit und ohne Consent gemischt?
+filterConsent <- FALSE # wenn gefiltern werden muss: TRUE
+
+
+
