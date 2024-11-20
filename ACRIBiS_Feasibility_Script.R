@@ -76,7 +76,7 @@ tabledescription_medication <- fhir_table_description(
            medication_unit            = "ingredient/strength/numerator/unit"
   )
 )
-##Condition (Resource = Diagnosis)
+##Condition 
 tabledescription_condition <- fhir_table_description(
   resource = "Condition",
   cols = c(condition_identifier     = "id",
@@ -104,8 +104,9 @@ icd10_codes_patient_conditions <- icd_expand(icd10_codes_patient_conditions, col
 # Identify Required Patients
 #download all conditions with respective ICD10-Codes
 #use "code" as FHIR-Search parameter for Condition resource
-body_patient_conditions <- fhir_body(content = list("code" = paste(icd10_codes_patient_conditions$icd_normcode, collapse = ",")))
+body_patient_conditions <- fhir_body(content = list("code" = paste(icd10_codes_patient_conditions$icd_normcode, collapse = ","), "_count" = page_count))
 request_patient_conditions <- fhir_url(url = diz_url, resource = "Condition")
+#add list(_count =250) to increase size of each bundles?
 bundles_patient_conditions <- fhir_search(request = request_patient_conditions, body = body_patient_conditions, max_bundles = bundle_limit, username = username, password = password)
 # no saving necessary
 table_patient_conditions <- fhir_crack(bundles = bundles_patient_conditions, design = tabledescription_condition, verbose = 1)
@@ -170,14 +171,15 @@ medications_all <- paste(c(medications_betablockers, medications_acei_arb, medic
 #give out statements after certain chunks to document progress
 write(paste("Finished Setup at", Sys.time(), "\n"), file = log, append = T)
 
-
+if (search_for_bundles == TRUE) {
 # FHIR Searches -----------------------------------------------------------
 # (only for first download, then load saved bundles to save time)
 
 # Patients
 #create the search body which lists all the found Patient IDs and restricts on specified parameters (birthdate)
 #use "_id" as global FHIR-Search parameter in patient resource
-body_patient <- fhir_body(content = list("_id" = paste(patient_ids_with_conditions, collapse = ","), "birthdate" = "lt2006-07-01"))
+#Update birthdate, automatisch berechnen
+body_patient <- fhir_body(content = list("_id" = paste(patient_ids_with_conditions, collapse = ","), "birthdate" = "lt2006-07-01", "_count" = page_count))
 #create request for specified URL and Resource
 request_patients <- fhir_url(url = diz_url, resource = "Patient")
 #Execute the fhir search using the above defined request and body
@@ -190,7 +192,7 @@ write(paste(length(bundles_patient), " Bundles for the Patient-Ressource were fo
 #Condition
 #now load all CONDITIONS for relevant patient IDs, to obtain other conditions (comorbidities) of relevant patients
 #use "patient" as FHIR-search parameter in Condition resource
-body_conditions <- fhir_body(content = list("subject" = paste(patient_ids_with_conditions, collapse = ",")))
+body_conditions <- fhir_body(content = list("subject" = paste(patient_ids_with_conditions, collapse = ","), "_count" = page_count))
 request_conditions <- fhir_url(url = diz_url, resource = "Condition")
 #code or normcode?; normcode appears to work
 bundles_condition <- fhir_search(request = request_conditions, body = body_conditions, max_bundles = bundle_limit, username = username, password = password)
@@ -201,7 +203,7 @@ write(paste(length(bundles_condition), " Bundles for the Condition-Ressource wer
 
 # Observation
 #use "subject" as FHIR search parameter for Observation resource
-body_observation <- fhir_body(content = list("subject" = paste(patient_ids_with_conditions, collapse = ","), "code" = LOINC_codes_all))
+body_observation <- fhir_body(content = list("subject" = paste(patient_ids_with_conditions, collapse = ","), "code" = LOINC_codes_all, "_count" = page_count))
 request_observations <- fhir_url(url = diz_url, resource = "Observation")
 bundles_observation <- fhir_search(request = request_observations, body = body_observation, max_bundles = bundle_limit, username = username, password = password)
 #give out statements after certain chunks to document progress
@@ -213,18 +215,15 @@ write(paste(length(bundles_observation), " Bundles for the Observation-Ressource
 #use "subject" as FHIR-Search parameter in medicationAdministration resource
 
 #1. search for all medicationAdministrations of the patients
-body_medicationAdministration <- fhir_body(content = list("subject" = paste(patient_ids_with_conditions, collapse = ",")))
+body_medicationAdministration <- fhir_body(content = list("subject" = paste(patient_ids_with_conditions, collapse = ","), "_count" = page_count))
 request_medicationAdministrations <- fhir_url(url = diz_url, resource = "MedicationAdministration")
 bundles_medicationAdministration <- fhir_search(request = request_medicationAdministrations, body = body_medicationAdministration, max_bundles = bundle_limit, username = username, password = password)
 #give out statements after certain chunks to document progress
 write(paste("Finished Search for MedicationAdministration-Ressources at", Sys.time(), "\n"), file = log, append = T)
 write(paste(length(bundles_medicationAdministration), " Bundles for the MedicationAdministration-Ressource were found \n"), file = log, append = T)
-#save for later loading, and to check for entries
-fhir_save(bundles = bundles_medicationAdministration, directory = "XML_Bundles/bundles_medicationAdministration")
 
 #crack immediately to provide ids for medication-search
-# is_fhir_bundle_empty("XML_Bundles/bundles_medicationAdministration") == TRUE , not necessary as this is covered in are_fhir_bundles_in_folder
-if(are_fhir_bundles_in_folder("XML_Bundles/bundles_medicationAdministration") == FALSE) {
+if(is_fhir_bundle_empty(bundles_medicationAdministration) == TRUE) {
   message("The bundle you are trying to crack is empty. This will result in an error. Therefore the bundle will not be cracked. An empty table will be created instead.")
   #create empty list of medications in the medicationAdministrations of the Patients to fill in next step
   medicationAdministration_ids <- ""
@@ -249,13 +248,11 @@ if(are_fhir_bundles_in_folder("XML_Bundles/bundles_medicationAdministration") ==
 
 #2. search for all medications from the identified medication administrations
 # Medication
-body_medication <- fhir_body(content = list("_id" = paste(medicationAdministration_ids, collapse = ",")))
+body_medication <- fhir_body(content = list("_id" = paste(medicationAdministration_ids, collapse = ","), "_count" = page_count))
 request_medications <- fhir_url(url = diz_url, resource = "Medication")
 bundles_medication <- fhir_search(request = request_medications, body = body_medication, max_bundles = bundle_limit, username = username, password = password)
-#save bundles to allow check for data
-fhir_save(bundles = bundles_medication, directory = "XML_Bundles/bundles_medication")
 #check data availability and crack bundles to extract medication_ids
-if(are_fhir_bundles_in_folder("XML_Bundles/bundles_medication") == FALSE | is_fhir_bundle_empty("XML_Bundles/bundles_medicationAdministration") == TRUE) {
+if(is_fhir_bundle_empty(bundles_medicationAdministration) == TRUE) {
   message("The bundle you are trying to crack is empty. This will result in an error. Therefore the bundle will not be cracked.")
   table_medications <- data.frame(medication_identifier      = character(),
                                   medication_system          = character(),
@@ -271,11 +268,9 @@ if(are_fhir_bundles_in_folder("XML_Bundles/bundles_medication") == FALSE | is_fh
   table_medications <- fhir_crack(bundles = bundles_medication, design = tabledescription_medication, verbose = 1)
   write(paste(nrow(table_medications), " Elements were created for Medications \n"), file = log, append = T)
 }
-
 #give out statements after certain chunks to document progress
 write(paste("Finished Search for Medication-Ressources at", Sys.time(), "\n"), file = log, append = T)
 write(paste(length(bundles_medication), " Bundles for the Medication-Ressource were found \n"), file = log, append = T)
-
 
 #3. combine tables and retain the medicationAdministrations with the relevant medications (removed if-clause, as table will exist in any case (might be empty though))
 #merge medication information with data in medicationAdministration
@@ -284,53 +279,24 @@ write(paste(length(bundles_medication), " Bundles for the Medication-Ressource w
   table_meds <- table_meds[table_meds$medication_code %in% medications_all,]
 
 
-
-#old
-# body_medicationAdministration <- fhir_body(content = list("subject" = paste(patient_ids_with_conditions, collapse = ","), "medication" = medications_all))
-# 
-# request_medicationAdministrations <- fhir_url(url = diz_url, resource = "MedicationAdministration")
-# bundles_medicationAdministration <- fhir_search(request = request_medicationAdministrations, body = body_medicationAdministration, max_bundles = bundle_limit, username = username, password = password)
-# #give out statements after certain chunks to document progress
-# write(paste("Finished Search for MedicationAdministration-Ressources at", Sys.time(), "\n"), file = log, append = T)
-# write(paste(length(bundles_medicationAdministration), " Bundles for the MedicationAdministration-Ressource were found \n"), file = log, append = T)
-# 
-# #save for later loading, and to check for entries
-# fhir_save(bundles = bundles_medicationAdministration, directory = "XML_Bundles/bundles_medicationAdministration")
-# #crack immediately to provide ids for medication-search
-# 
-# if(are_fhir_bundles_in_folder("XML_Bundles/bundles_medicationAdministration") == FALSE) {
-#   message("The bundle you are trying to crack is empty. This will result in an error. Therefore the bundle will not be cracked.")
-#   #create emppty list of medications in the medicationAdministrations of the Patients to fill in next step
-#   medicationAdministration_ids <- NA
-# } else {
-#     message("Cracking ", length(bundles_medicationAdministration), " medicationAdministration Bundles.\n")
-#     table_medicationAdministrations <- fhir_crack(bundles = bundles_medicationAdministration, design = tabledescription_medicationAdministration, verbose = 1)
-#     #create list of medications in the medicationAdministrations of the Patients
-#     medicationAdministration_ids <- sub("Medication/", "", table_medicationAdministrations$medicationAdministration_medication_reference)
-#     #give out statements after certain chunks to document progress
-#     write(paste("Cracked Table for MedicationAdministration-Ressources at", Sys.time(), "\n"), file = log, append = T)
-#     write(paste(nrow(table_medicationAdministrations), " Elements were created for MedicationAdministration \n"), file = log, append = T)
-# }
-# 
-
-
-
-#(Modul Fall für Einrichtungskontakt: nicht möglich, da Abteilungsschlüssel nur in Beschreibung aber nicht in FHIR-Profil hinterlegt ist)
-
-
 # Save Bundles ------------------------------------------------------------
+
+if (save_bundles == TRUE)   {
 # (only after first download) move to FHIR Search section (so far only medicationAdministration)
 #save and load to circumvent long download times for bundles; comment and uncomment with line above (fhir_search) as necessary
 message("Saving  Bundles.\n")
 fhir_save(bundles = bundles_patient, directory = "XML_Bundles/bundles_patient")
 fhir_save(bundles = bundles_condition, directory = "XML_Bundles/bundles_condition")
 fhir_save(bundles = bundles_observation, directory = "XML_Bundles/bundles_observation")
+fhir_save(bundles = bundles_medicationAdministration, directory = "XML_Bundles/bundles_medicationAdministration")
+fhir_save(bundles = bundles_medication, directory = "XML_Bundles/bundles_medication")
 
 #give out statements after certain chunks to document progress
 write(paste("Saved Bundles at ", Sys.time(), "\n"), file = log, append = T)
-
+ }
+} else {
 # Load Bundles ------------------------------------------------------------
-# (after bundles are saved)
+#executed if search_for_bundles == FALSE
 message("Loading saved Bundles.\n")
 bundles_patient <- fhir_load(directory = "XML_Bundles/bundles_patient")
 bundles_condition <- fhir_load(directory = "XML_Bundles/bundles_condition")
@@ -339,11 +305,13 @@ bundles_medication <- fhir_load(directory = "XML_Bundles/bundles_medication")
 bundles_medicationAdministration <- fhir_load(directory = "XML_Bundles/bundles_medicationAdministration")
 #give out statements after certain chunks to document progress
 write(paste("Loaded Bundles at", Sys.time(), "\n"), file = log, append = T)
+ }
+
 
 # Crack Into Tables -------------------------------------------------------
 #crack bundles into table
 
-if(are_fhir_bundles_in_folder("XML_Bundles/bundles_patient") == FALSE) {
+if(is_fhir_bundle_empty(bundles_patient) == TRUE) {
   message("The bundle you are trying to crack is empty. This will result in an error. Therefore the bundle will not be cracked.")
 } else {
 message("Cracking ", length(bundles_patient), " Patient Bundles.\n")
@@ -351,7 +319,7 @@ table_patients <- fhir_crack(bundles = bundles_patient, design = tabledescriptio
 write(paste(nrow(table_patients), " Elements were created for Patients \n"), file = log, append = T)
   }
 
-if(are_fhir_bundles_in_folder("XML_Bundles/bundles_condition") == FALSE) {
+if(is_fhir_bundle_empty(bundles_condition) == TRUE) {
   message("The bundle you are trying to crack is empty. This will result in an error. Therefore the bundle will not be cracked.")
 } else {
 message("Cracking ", length(bundles_condition), " Condition Bundles.\n")
@@ -359,12 +327,54 @@ table_conditions <- fhir_crack(bundles = bundles_condition, design = tabledescri
 write(paste(nrow(table_conditions), " Elements were created for Conditions \n"), file = log, append = T)
 }
 
-if(are_fhir_bundles_in_folder("XML_Bundles/bundles_observation") == FALSE) {
+if(is_fhir_bundle_empty(bundles_observation) == TRUE) {
   message("The bundle you are trying to crack is empty. This will result in an error. Therefore the bundle will not be cracked.")
 } else {
 message("Cracking ", length(bundles_observation), " Observation Bundles.\n")
 table_observations <- fhir_crack(bundles = bundles_observation, design = tabledescription_observation, verbose = 1)
 write(paste(nrow(table_observations), " Elements were created for Observations \n"), file = log, append = T)
+}
+
+#include cracking of tables that is executed imeadiately after search because of dependiencies for other searches (if bundles are loaded these steps would be missing otherwise)
+if(search_for_bundles == FALSE){
+  if(is_fhir_bundle_empty(bundles_medicationAdministration) == TRUE) {
+    message("The bundle you are trying to crack is empty. This will result in an error. Therefore the bundle will not be cracked. An empty table will be created instead.")
+    #create empty list of medications in the medicationAdministrations of the Patients to fill in next step
+    medicationAdministration_ids <- ""
+    table_medicationAdministrations <- data.frame(medicationAdministration_identifier            = character(),
+                                                  medicationAdministration_subject               = character(), 
+                                                  medicationAdministration_status                = character(),
+                                                  medicationAdministration_medication_reference  = character(),
+                                                  medicationAdministration_effective_dateTime    = character(),
+                                                  medicationAdministration_effective_period      = character(),
+                                                  stringsAsFactors = FALSE)
+    
+  } else {
+    message("Cracking ", length(bundles_medicationAdministration), " medicationAdministration Bundles.\n")
+    table_medicationAdministrations <- fhir_crack(bundles = bundles_medicationAdministration, design = tabledescription_medicationAdministration, verbose = 1)
+    #create list of medication_ids that are referenced in the medicationAdministrations of the Patients
+    medicationAdministration_ids <- sub("Medication/", "", table_medicationAdministrations$medicationAdministration_medication_reference)
+    #give out statements after certain chunks to document progress
+    write(paste("Cracked Table for MedicationAdministration-Ressources at", Sys.time(), "\n"), file = log, append = T)
+    write(paste(nrow(table_medicationAdministrations), " Elements were created for MedicationAdministration \n"), file = log, append = T)
+  }
+
+if(is_fhir_bundle_empty(bundles_medicationAdministration) == TRUE) {
+  message("The bundle you are trying to crack is empty. Therefore an empty table will be created.")
+  table_medications <- data.frame(medication_identifier      = character(),
+                                  medication_system          = character(),
+                                  medication_code            = character(),
+                                  medication_display         = character(),
+                                  medication_text            = character(),
+                                  medication_strength        = character(),
+                                  medication_strength_per    = character(),
+                                  medication_unit            = character(),
+                                  stringsAsFactors = FALSE)
+ } else {
+  message("Cracking ", length(bundles_medication), " Medication Bundles.\n")
+  table_medications <- fhir_crack(bundles = bundles_medication, design = tabledescription_medication, verbose = 1)
+  write(paste(nrow(table_medications), " Elements were created for Medications \n"), file = log, append = T)
+   }
 }
 
 
@@ -437,24 +447,22 @@ table_medicationAdministrations$medicationAdministration_medication_reference <-
 write(paste("Data Cleaning was finished at", Sys.time(), "\n"), file = log, append = T)
 
 # Additional columns for analysis  ----------------------------------------------------------
-#column with time since first CVD Diagnosis for each patient per patient
+#column with time since first CVD Diagnosis for each patient
 #calculate time since first Cardiovascular Diagnosis (I05-I09, I20-I25, I30-I52)
 #for recordedDate (mandatory)
 table_conditions %>%
-  filter(condition_code %in% icd10_codes_patient_conditions) %>%
+  filter(condition_code %in% icd10_codes_patient_conditions$icd_normcode) %>%
   group_by(condition_subject) %>%
   mutate(condition_first_diagnosis_date = min(condition_recordedDate)) %>%
   ungroup() %>%
   mutate(condition_time_since_first_cvd_record = as.numeric(difftime(Sys.Date(), condition_first_diagnosis_date, units = "days")))
-#should work if data is available, otherwise warning
 #same for onsetDate if available (optional)
 table_conditions %>%
-  filter(condition_code %in% icd10_codes_patient_conditions) %>%
+  filter(condition_code %in% icd10_codes_patient_conditions$icd_normcode) %>%
   group_by(condition_subject) %>%
   mutate(condition_first_diagnosis_date = min(condition_onsetDate)) %>%
   ungroup() %>%
   mutate(condition_time_since_first_cvd_onset = as.numeric(difftime(Sys.Date(), condition_first_diagnosis_date, units = "days")))
-#should work if data is available, otherwise warning
 
 
 #create vectors to check eligibility
@@ -595,6 +603,9 @@ table_eligibility$eligible_chadsvasc_overall <- apply(table_eligibility[,eligibi
 table_eligibility$eligible_smart_overall <- apply(table_eligibility[,eligibility_available_columns_smart], 1, function(x) ifelse(any(x == 0), 0, ifelse(any(is.na(x)), NA, 1)))
 table_eligibility$eligible_maggic_overall <- apply(table_eligibility[,eligibility_available_columns_maggic], 1, function(x) ifelse(any(x == 0), 0, ifelse(any(is.na(x)), NA, 1)))
 table_eligibility$eligible_charge_overall <- apply(table_eligibility[,eligibility_available_columns_charge], 1, function(x) ifelse(any(x == 0), 0, ifelse(any(is.na(x)), NA, 1)))
+
+
+## Can Calc
 
 #sex and age are required from patient table
 table_patients$can_calc_patient_chadsvasc <- ifelse(!is.na(table_patients$patient_age) & !is.na(table_patients$patient_gender), 1, 0)
