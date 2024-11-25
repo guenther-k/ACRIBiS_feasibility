@@ -90,6 +90,9 @@ tabledescription_condition <- fhir_table_description(
 
 
 
+
+
+
 ## find patient IDs with relevant ICD-10 Codes for Condition 
 # Define relevant ICD-codes for CVD Diagnoses                                               
 icd10_codes_patient_conditions <- data.frame( icd_code = c("I05", "I06", "I07", "I08", "I09", 
@@ -102,11 +105,10 @@ icd10_codes_patient_conditions <- icd_expand(icd10_codes_patient_conditions, col
 
 
 # Identify Required Patients
-#download all conditions with respective ICD10-Codes
+#download all conditions with respective ICD10-Codes and for patients (subjects) from relevant time frame
 #use "code" as FHIR-Search parameter for Condition resource
 body_patient_conditions <- fhir_body(content = list("code" = paste(icd10_codes_patient_conditions$icd_normcode, collapse = ","), "_count" = page_count))
 request_patient_conditions <- fhir_url(url = diz_url, resource = "Condition")
-#add list(_count =250) to increase size of each bundles?
 bundles_patient_conditions <- fhir_search(request = request_patient_conditions, body = body_patient_conditions, max_bundles = bundle_limit, username = username, password = password)
 # no saving necessary
 table_patient_conditions <- fhir_crack(bundles = bundles_patient_conditions, design = tabledescription_condition, verbose = 1)
@@ -170,6 +172,7 @@ medications_all <- paste(c(medications_betablockers, medications_acei_arb, medic
 
 #give out statements after certain chunks to document progress
 write(paste("Finished Setup at", Sys.time(), "\n"), file = log, append = T)
+
 
 if (search_for_bundles == TRUE) {
 # FHIR Searches -----------------------------------------------------------
@@ -392,7 +395,7 @@ message("Cleaning the Data.\n")
 
 #convert birthday to birthyear and calculate age
 #fhircracking-process makes all variables into character-variables, year should always be given first (according to Implementation Guide/FHIR), first four characters can be extracted for birthyear
-if(are_fhir_bundles_in_folder("XML_Bundles/bundles_patient") == FALSE) {
+if(is_fhir_bundle_empty("XML_Bundles/bundles_patient") == TRUE) {
   message("The action you trying to carry out is not possible due to empty resources. Executing the action would result in an error. Therefore the action will not be carried out.")
 } else {
 #apply function to date coulumn
@@ -404,7 +407,7 @@ current_year <- as.numeric(format(Sys.Date(), "%Y"))
 table_patients$patient_age <- current_year - table_patients$patient_birthyear
   }
 
-if(are_fhir_bundles_in_folder("XML_Bundles/bundles_observation") == FALSE) {
+if(is_fhir_bundle_empty("XML_Bundles/bundles_observation") == TRUE) {
   message("The action you trying to carry out is not possible due to empty resources. Executing the action would result in an error. Therefore the action will not be carried out.")
 } else {
 #values must be changed to numeric to show distribution
