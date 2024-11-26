@@ -1,8 +1,8 @@
 # Konfigurations-Datei 
 # Bitte die folgenden Variablen entsprechend der Gegebenheiten vor Ort anpassen!
 
-# FHIR-Endpunkt https://mii-agiop-3p.life.uni-leipzig.de/blaze
-diz_url = "http://hapi.fhir.org/baseR4"
+# z.B. https://mii-agiop-3p.life.uni-leipzig.de/blaze
+diz_url = ""
 
 #add maximum number of bundles to enable faster run times for testing (e.g. 10 or 20)
 bundle_limit <- Inf
@@ -13,6 +13,8 @@ save_bundles <- FALSE
 
 #set count for how many resources can be filled into one bundle response (default most often 50); depends on FHIR-Server Settings
 page_count <- as.character(50)
+#Variable to define whether html elemnts should be removed or kept ("div" removes html, NULL keeps them); might impact RAM usage
+rm_tag <- NULL
 
 # Authentifizierung
 # Falls Authentifizierung, bitte entsprechend anpassen (sonst ignorieren):

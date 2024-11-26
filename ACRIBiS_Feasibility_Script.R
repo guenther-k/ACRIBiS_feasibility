@@ -89,6 +89,25 @@ tabledescription_condition <- fhir_table_description(
 )
 
 
+# Limit to last years patient ----------------------------------------------
+
+tabledescription_encounter <- fhir_table_description(
+  resource = "Encounter",
+  cols = c(encounter_identifier     = "id",
+           encounter_periodStart    = "period/start",
+           encounter_subject        = "subject/reference"
+  )
+)
+
+body_encounters <- fhir_body(content = list("date" = "gt2023-01-01", "_count" = page_count))
+request_encounters <- fhir_url(url = diz_url, resource = "Encounter")
+bundles_encounters <- fhir_search(request = request_encounters, body = body_encounters, max_bundles = bundle_limit, username = username, password = password, rm_tag = rm_tag)
+# no saving necessary
+table_encounter <- fhir_crack(bundles = bundles_encounters, design = tabledescription_encounter, verbose = 1)
+
+#ggf. anpassen (Bezeichung in Spalte eventuell je nach Server unterschiedlich)
+relevant_encounter_subjects <- sub("Patient/", "", table_encounter$encounter_subject)
+
 
 
 
@@ -107,9 +126,9 @@ icd10_codes_patient_conditions <- icd_expand(icd10_codes_patient_conditions, col
 # Identify Required Patients
 #download all conditions with respective ICD10-Codes and for patients (subjects) from relevant time frame
 #use "code" as FHIR-Search parameter for Condition resource
-body_patient_conditions <- fhir_body(content = list("code" = paste(icd10_codes_patient_conditions$icd_normcode, collapse = ","), "_count" = page_count))
+body_patient_conditions <- fhir_body(content = list("code" = paste(icd10_codes_patient_conditions$icd_normcode, collapse = ","), "subject" = relevant_encounter_subjects, "_count" = page_count))
 request_patient_conditions <- fhir_url(url = diz_url, resource = "Condition")
-bundles_patient_conditions <- fhir_search(request = request_patient_conditions, body = body_patient_conditions, max_bundles = bundle_limit, username = username, password = password)
+bundles_patient_conditions <- fhir_search(request = request_patient_conditions, body = body_patient_conditions, max_bundles = bundle_limit, username = username, password = password, rm_tag = rm_tag)
 # no saving necessary
 table_patient_conditions <- fhir_crack(bundles = bundles_patient_conditions, design = tabledescription_condition, verbose = 1)
 
@@ -186,7 +205,7 @@ body_patient <- fhir_body(content = list("_id" = paste(patient_ids_with_conditio
 #create request for specified URL and Resource
 request_patients <- fhir_url(url = diz_url, resource = "Patient")
 #Execute the fhir search using the above defined request and body
-bundles_patient <- fhir_search(request = request_patients, body = body_patient, max_bundles = bundle_limit, username = username, password = password)
+bundles_patient <- fhir_search(request = request_patients, body = body_patient, max_bundles = bundle_limit, username = username, password = password, rm_tag = rm_tag)
 #give out statements after certain chunks to document progress
 write(paste("Finished Search for Patient-Ressources at", Sys.time(), "\n"), file = log, append = T)
 write(paste(length(bundles_patient), " Bundles for the Patient-Ressource were found \n"), file = log, append = T)
@@ -198,7 +217,7 @@ write(paste(length(bundles_patient), " Bundles for the Patient-Ressource were fo
 body_conditions <- fhir_body(content = list("subject" = paste(patient_ids_with_conditions, collapse = ","), "_count" = page_count))
 request_conditions <- fhir_url(url = diz_url, resource = "Condition")
 #code or normcode?; normcode appears to work
-bundles_condition <- fhir_search(request = request_conditions, body = body_conditions, max_bundles = bundle_limit, username = username, password = password)
+bundles_condition <- fhir_search(request = request_conditions, body = body_conditions, max_bundles = bundle_limit, username = username, password = password, rm_tag = rm_tag)
 #give out statements after certain chunks to document progress
 write("Finished Search for Condition-Ressources at", Sys.time(), "\n", file = log, append = T)
 write(paste(length(bundles_condition), " Bundles for the Condition-Ressource were found \n"), file = log, append = T)
@@ -208,7 +227,7 @@ write(paste(length(bundles_condition), " Bundles for the Condition-Ressource wer
 #use "subject" as FHIR search parameter for Observation resource
 body_observation <- fhir_body(content = list("subject" = paste(patient_ids_with_conditions, collapse = ","), "code" = LOINC_codes_all, "_count" = page_count))
 request_observations <- fhir_url(url = diz_url, resource = "Observation")
-bundles_observation <- fhir_search(request = request_observations, body = body_observation, max_bundles = bundle_limit, username = username, password = password)
+bundles_observation <- fhir_search(request = request_observations, body = body_observation, max_bundles = bundle_limit, username = username, password = password, rm_tag = rm_tag)
 #give out statements after certain chunks to document progress
 write(paste("Finished Search for Observation-Ressources at", Sys.time(), "\n"), file = log, append = T)
 write(paste(length(bundles_observation), " Bundles for the Observation-Ressource were found \n"), file = log, append = T)
@@ -220,7 +239,7 @@ write(paste(length(bundles_observation), " Bundles for the Observation-Ressource
 #1. search for all medicationAdministrations of the patients
 body_medicationAdministration <- fhir_body(content = list("subject" = paste(patient_ids_with_conditions, collapse = ","), "_count" = page_count))
 request_medicationAdministrations <- fhir_url(url = diz_url, resource = "MedicationAdministration")
-bundles_medicationAdministration <- fhir_search(request = request_medicationAdministrations, body = body_medicationAdministration, max_bundles = bundle_limit, username = username, password = password)
+bundles_medicationAdministration <- fhir_search(request = request_medicationAdministrations, body = body_medicationAdministration, max_bundles = bundle_limit, username = username, password = password, rm_tag = rm_tag)
 #give out statements after certain chunks to document progress
 write(paste("Finished Search for MedicationAdministration-Ressources at", Sys.time(), "\n"), file = log, append = T)
 write(paste(length(bundles_medicationAdministration), " Bundles for the MedicationAdministration-Ressource were found \n"), file = log, append = T)
@@ -253,7 +272,7 @@ if(is_fhir_bundle_empty(bundles_medicationAdministration) == TRUE) {
 # Medication
 body_medication <- fhir_body(content = list("_id" = paste(medicationAdministration_ids, collapse = ","), "_count" = page_count))
 request_medications <- fhir_url(url = diz_url, resource = "Medication")
-bundles_medication <- fhir_search(request = request_medications, body = body_medication, max_bundles = bundle_limit, username = username, password = password)
+bundles_medication <- fhir_search(request = request_medications, body = body_medication, max_bundles = bundle_limit, username = username, password = password, rm_tag = rm_tag)
 #check data availability and crack bundles to extract medication_ids
 if(is_fhir_bundle_empty(bundles_medicationAdministration) == TRUE) {
   message("The bundle you are trying to crack is empty. This will result in an error. Therefore the bundle will not be cracked.")
