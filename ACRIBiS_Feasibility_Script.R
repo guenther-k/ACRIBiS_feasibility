@@ -99,7 +99,7 @@ tabledescription_encounter <- fhir_table_description(
   )
 )
 
-body_encounters <- fhir_body(content = list("date" = "gt2023-01-01", "_count" = page_count))
+body_encounters <- fhir_body(content = list("date" = "gt2024-01-01", "_count" = page_count))
 request_encounters <- fhir_url(url = diz_url, resource = "Encounter")
 bundles_encounters <- fhir_search(request = request_encounters, body = body_encounters, max_bundles = bundle_limit, username = username, password = password, rm_tag = rm_tag)
 # no saving necessary
