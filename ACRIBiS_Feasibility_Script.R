@@ -126,7 +126,7 @@ icd10_codes_patient_conditions <- icd_expand(icd10_codes_patient_conditions, col
 # Identify Required Patients
 #download all conditions with respective ICD10-Codes and for patients (subjects) from relevant time frame
 #use "code" as FHIR-Search parameter for Condition resource
-body_patient_conditions <- fhir_body(content = list("code" = paste(icd10_codes_patient_conditions$icd_normcode, collapse = ","), "subject" = relevant_encounter_subjects, "_count" = page_count))
+body_patient_conditions <- fhir_body(content = list("code" = paste(icd10_codes_patient_conditions$icd_normcode, collapse = ","), "subject" = paste(relevant_encounter_subjects, collapse = ","), "_count" = page_count))
 request_patient_conditions <- fhir_url(url = diz_url, resource = "Condition")
 bundles_patient_conditions <- fhir_search(request = request_patient_conditions, body = body_patient_conditions, max_bundles = bundle_limit, username = username, password = password, rm_tag = rm_tag)
 # no saving necessary
