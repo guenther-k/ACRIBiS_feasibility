@@ -414,7 +414,7 @@ message("Cleaning the Data.\n")
 
 #convert birthday to birthyear and calculate age
 #fhircracking-process makes all variables into character-variables, year should always be given first (according to Implementation Guide/FHIR), first four characters can be extracted for birthyear
-if(is_fhir_bundle_empty("XML_Bundles/bundles_patient") == TRUE) {
+if(is_fhir_bundle_empty(bundles_patient) == TRUE) {
   message("The action you trying to carry out is not possible due to empty resources. Executing the action would result in an error. Therefore the action will not be carried out.")
 } else {
 #apply function to date coulumn
@@ -426,7 +426,7 @@ current_year <- as.numeric(format(Sys.Date(), "%Y"))
 table_patients$patient_age <- current_year - table_patients$patient_birthyear
   }
 
-if(is_fhir_bundle_empty("XML_Bundles/bundles_observation") == TRUE) {
+if(is_fhir_bundle_empty(bundles_observation) == TRUE) {
   message("The action you trying to carry out is not possible due to empty resources. Executing the action would result in an error. Therefore the action will not be carried out.")
 } else {
 #values must be changed to numeric to show distribution
