@@ -186,8 +186,9 @@ medications_antithrombotic <- c("B01AA01", "B01AA02", "B01AA03", "B01AA04", "B01
                                 "B01AD04", "B01AD05", "B01AD06", "B01AD07", "B01AD08", "B01AD09", "B01AD10", "B01AD11", "B01AD12", "B01AD51", "B01AE01", "B01AE02", 
                                 "B01AE03", "B01AE04", "B01AE05", "B01AE06", "B01AE07", "B01AF01", "B01AF02", "B01AF03", "B01AF04", "B01AX01", "B01AX04", "B01AX05", 
                                 "B01AX07", "B01AX11", "B01AY01", "B01AY02")
-medications_all <- paste(c(medications_betablockers, medications_acei_arb, medications_antithrombotic), collapse = ",")
 
+#no paste, because that creats a single string instead of a list
+medications_all <- c(medications_betablockers, medications_acei_arb, medications_antithrombotic)
 
 #give out statements after certain chunks to document progress
 write(paste("Finished Setup at", Sys.time(), "\n"), file = log, append = T)
@@ -376,7 +377,11 @@ if(is_fhir_bundle_empty(bundles_patient) == TRUE) {
   message("The action you trying to carry out is not possible due to empty resources. Executing the action would result in an error. Therefore the action will not be carried out.")
 } else {
 #apply function to date coulumn
+if(patient_birthdate %in% names(table_patients)){
 table_patients$patient_birthdate <- sapply(table_patients$patient_birthdate, convert_date_to_year)
+} else {
+  message("The column birthdate is not present in the Patient-Table. If this is not the first execution of the code, this is likely due to the removal of the column in the next line, to protect patient privacy. Please check if the column patient_birthyear already exists.")
+}
 #rename column for clarity
 colnames(table_patients)[colnames(table_patients) == "patient_birthdate"] <- "patient_birthyear"
 #calculate age
@@ -642,7 +647,6 @@ table_eligibility_all_criteria <- table_eligibility %>%
 ## Can Calc Assessment --------------
 #remove unwanted columns and set up new table
 table_can_calc <- subset(table_patients, select = -c(eligible_patient_age_chadsvasc, eligible_patient_age_smart, eligible_patient_maggic, eligible_patient_charge))
-
 
 #sex and age are required from patient table
 table_patients$can_calc_patient_chadsvasc <- ifelse(!is.na(table_patients$patient_age) & !is.na(table_patients$patient_gender), 1, 0)
