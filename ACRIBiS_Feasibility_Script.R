@@ -612,10 +612,14 @@ table_eligibility <- merge(table_eligibility, table_observations_merge_eligible,
 table_eligibility <- merge(table_eligibility, table_meds_merge_eligible, by.x = "patient_identifier", by.y = "medicationAdministration_subject", all.x = TRUE)
 
 #hier alle Einträge die nicht 0 sind auf 1 setzen, da wenn medication nich vorhanden sind, davon ausgegangen werden muss, dass sie nicht verabreicht werden
-if (nrow(table_meds_merge_eligible) > 0) {table_eligibility$eligible_meds_chadsvasc <- if(is.na(table_eligibility$eligible_meds_chadsvasc)){table_eligibility$eligible_meds_chadsvasc <- 1}}  
-if (nrow(table_meds_merge_eligible) > 0) {table_eligibility$eligible_meds_smart <- if(is.na(table_eligibility$eligible_meds_smart)){table_eligibility$eligible_meds_smart <- 1}}
-if (nrow(table_meds_merge_eligible) > 0) {table_eligibility$eligible_meds_maggic <- if(is.na(table_eligibility$eligible_meds_maggic)){table_eligibility$eligible_meds_maggic <- 1}}
-if (nrow(table_meds_merge_eligible) > 0) {table_eligibility$eligible_meds_charge <- if(is.na(table_eligibility$eligible_meds_charge)){table_eligibility$eligible_meds_charge <- 1}}
+# if (nrow(table_meds_merge_eligible) > 0) {table_eligibility$eligible_meds_chadsvasc <- if(is.na(table_eligibility$eligible_meds_chadsvasc)){table_eligibility$eligible_meds_chadsvasc <- 1}}  
+# if (nrow(table_meds_merge_eligible) > 0) {table_eligibility$eligible_meds_smart <- if(is.na(table_eligibility$eligible_meds_smart)){table_eligibility$eligible_meds_smart <- 1}}
+# if (nrow(table_meds_merge_eligible) > 0) {table_eligibility$eligible_meds_maggic <- if(is.na(table_eligibility$eligible_meds_maggic)){table_eligibility$eligible_meds_maggic <- 1}}
+# if (nrow(table_meds_merge_eligible) > 0) {table_eligibility$eligible_meds_charge <- if(is.na(table_eligibility$eligible_meds_charge)){table_eligibility$eligible_meds_charge <- 1}}
+if (nrow(table_meds_merge_eligible) > 0) {table_eligibility$eligible_meds_chadsvasc[is.na(table_eligibility$eligible_meds_chadsvasc)] <- 1}  
+if (nrow(table_meds_merge_eligible) > 0) {table_eligibility$eligible_meds_smart[is.na(table_eligibility$eligible_meds_smart)] <- 1}
+if (nrow(table_meds_merge_eligible) > 0) {table_eligibility$eligible_meds_maggic[is.na(table_eligibility$eligible_meds_maggic)] <- 1}
+if (nrow(table_meds_merge_eligible) > 0) {table_eligibility$eligible_meds_charge[is.na(table_eligibility$eligible_meds_charge)] <- 1}
 
 
 
