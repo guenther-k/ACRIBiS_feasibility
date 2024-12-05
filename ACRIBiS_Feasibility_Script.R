@@ -377,7 +377,7 @@ if(is_fhir_bundle_empty(bundles_patient) == TRUE) {
   message("The action you trying to carry out is not possible due to empty resources. Executing the action would result in an error. Therefore the action will not be carried out.")
 } else {
 #apply function to date coulumn
-if(patient_birthdate %in% names(table_patients)){
+if("patient_birthdate" %in% names(table_patients)){
 table_patients$patient_birthdate <- sapply(table_patients$patient_birthdate, convert_date_to_year)
 } else {
   message("The column birthdate is not present in the Patient-Table. If this is not the first execution of the code, this is likely due to the removal of the column in the next line, to protect patient privacy. Please check if the column patient_birthyear already exists.")
@@ -661,6 +661,8 @@ table_patients$can_calc_patient_charge <- ifelse(!is.na(table_patients$patient_a
 
 # are required data available from observations table
 #group by patient to assess all corresponding observations, if any combination of the observations pertains to required values, the score can be calculated
+
+# add  & !is.na(observation_value)
 table_observations <- table_observations %>%
   group_by(observation_subject) %>%
   mutate(can_calc_observations_chadsvasc = 1) %>%
@@ -733,9 +735,6 @@ table_can_calc <- merge(table_can_calc, table_meds_merge_can_calc, by.x = "patie
 table_can_calc <- table_can_calc %>%
   mutate(across(c(can_calc_meds_chadsvasc, can_calc_meds_charge, can_calc_meds_maggic, can_calc_meds_smart), ~replace_na(.,1)))
 
-export_table_can_calc <- table_can_calc %>%
-  select(-patient_identifier, -patient_birthyear)
-
 # ability of calculating scores (all parameters that need to be available, are available), absence of parameters is interpreted as not present in patient
 can_calc_required_columns_chadsvasc <- c("can_calc_patient_chadsvasc", "can_calc_conditions_chadsvasc", "can_calc_observations_chadsvasc", "can_calc_meds_chadsvasc")
 can_calc_available_columns_chadsvasc <- can_calc_required_columns_chadsvasc[can_calc_required_columns_chadsvasc %in% colnames(table_can_calc)]
@@ -752,6 +751,9 @@ table_can_calc$can_calc_smart_overall <- apply(table_can_calc[,can_calc_availabl
 table_can_calc$can_calc_maggic_overall <- apply(table_can_calc[,can_calc_available_columns_maggic], 1, function(x) ifelse(any(x == 0), 0, ifelse(any(is.na(x)), NA, 1)))
 table_can_calc$can_calc_charge_overall <- apply(table_can_calc[,can_calc_available_columns_charge], 1, function(x) ifelse(any(x == 0), 0, ifelse(any(is.na(x)), NA, 1)))
 
+#as last step to include all columns
+export_table_can_calc <- table_can_calc %>%
+  select(-patient_identifier, -patient_birthyear, -patient_gender, -patient_age)
 
 
 # Feasibility Analysis ----------------------------------------------------
@@ -774,7 +776,7 @@ precentage_patients_with_no_code_medication <- table_meds %>% filter(is.na(medic
 desc_patient_age <- table_patients %>% summarise(min_age = min(patient_age), mean_age = mean(patient_age), median_age = median(patient_age), max_age = max(patient_age), n = n())
 desc_patient_gender <- as.data.frame(table(table_patients$patient_gender))
 #observation
-desc_observation <- table_observations %>% filter(!is.na(observation_code)) %>% group_by(observation_code, observation_LOINC_term) %>% summarise(min = min(observation_value_num), mean = mean(observation_value_num), median = median (observation_value_num), max = max(observation_value_num), n=n())
+desc_observation <- table_observations %>% filter(!is.na(observation_code) & !is.na(observation_value_num)) %>% group_by(observation_code, observation_LOINC_term) %>% summarise(min = min(observation_value_num), mean = mean(observation_value_num), median = median (observation_value_num), max = max(observation_value_num), n=n())
 #condition
 desc_conditions <- table_conditions %>% filter(!is.na(condition_code)) %>% count(condition_code)
 #medications
@@ -826,9 +828,9 @@ crosstabs_eligibility_availability_charge <- table(table_eligibility_can_calc$el
 #Assumption: if Medications or Conditions are missing, the patient does not have them (sensitivity?) non-existence cannot be confirmed by routine data, correct?
 # table_eligibility$any_score_eligible <- ifelse(table_eligibility$eligible_chadsvasc_overall == 1 | table_eligibility$eligible_smart_overall == 1 | table_eligibility$eligible_maggic_overall == 1 | table_eligibility$eligible_charge_overall == 1, 1, 0)
 # table_can_calc$any_score_can_calc <- ifelse(table_can_calc$can_calc_chadsvasc_overall == 1 | table_can_calc$can_calc_smart_overall == 1 | table_can_calc$can_calc_maggic_overall == 1 | table_can_calc$can_calc_charge_overall == 1, 1, 0)
-#alternative to prevent error
-table_eligibility_can_calc$any_score_eligible <- rowSums(table_eligibility[, c("eligible_chadsvasc_overall", "eligible_smart_overall", "eligible_maggic_overall", "eligible_charge_overall")], na.rm = TRUE) > 0
-table_eligibility_can_calc$any_score_can_calc <- rowSums(table_can_calc[, c("can_calc_chadsvasc_overall", "can_calc_smart_overall", "can_calc_maggic_overall", "can_calc_charge_overall")], na.rm = TRUE) > 0
+#alternative to prevent error; removed , "can_calc_charge_overall" to be closer to ACRIBiS
+table_eligibility_can_calc$any_score_eligible <- rowSums(table_eligibility[, c("eligible_chadsvasc_overall", "eligible_smart_overall", "eligible_maggic_overall")], na.rm = TRUE) > 0
+table_eligibility_can_calc$any_score_can_calc <- rowSums(table_can_calc[, c("can_calc_chadsvasc_overall", "can_calc_smart_overall", "can_calc_maggic_overall")], na.rm = TRUE) > 0
 
 
 #Percentage of patients who are eligible for at least 1 score
@@ -847,9 +849,22 @@ navalues_inResources_allScores <- filter(table_eligibility_can_calc, table_eligi
 navalues_inResources_allScores <- colSums(navalues_inResources_allScores[-1])
 
 
+#create table with condition_cvd & eligible
+table_eligibility_can_calc$smart_with_condition_eligible = ifelse(table_eligibility_can_calc$condition_cvd == 1 & table_eligibility_can_calc$eligible_smart_overall == 1, 1, 0)
+table_eligibility_can_calc$chadsvasc_with_condition_eligible = ifelse(table_eligibility_can_calc$condition_af == 1 & table_eligibility_can_calc$eligible_chadsvasc_overall == 1, 1, 0)
+table_eligibility_can_calc$maggic_with_condition_eligible = ifelse(table_eligibility_can_calc$condition_hf == 1 & table_eligibility_can_calc$eligible_maggic_overall == 1, 1, 0)
+
+#crete table with condition_cvd and eligible and can_calc
+table_eligibility_can_calc$smart_with_condition_eligible_calc = ifelse(table_eligibility_can_calc$condition_cvd == 1 & table_eligibility_can_calc$eligible_smart_overall == 1 & table_eligibility_can_calc$can_calc_smart == 1, 1, 0)
+table_eligibility_can_calc$chadsvasc_with_condition_eligible = ifelse(table_eligibility_can_calc$condition_af == 1 & table_eligibility_can_calc$eligible_chadsvasc_overall == 1 & table_eligibility_can_calc$can_calc_chadsvasc_overall, 1, 0)
+table_eligibility_can_calc$maggic_with_condition_eligible = ifelse(table_eligibility_can_calc$condition_hf == 1 & table_eligibility_can_calc$eligible_maggic_overall == 1 & table_eligibility_can_calc$can_calc_maggic_overall, 1, 0)
+
 #give out statements after certain chunks to document progress
 write(paste("Analysis Steps were finished at", Sys.time(), "\n"), file = log, append = T)
 
+
+export_table_eligibility_can_calc <- table_eligibility_can_calc %>%
+  select(-patient_identifier, -patient_birthyear, -patient_gender, -patient_age)
 
 # Data Export -------------------------------------------------------------
 message("Writing Results into CSV-Files.\n")
@@ -875,6 +890,8 @@ write.csv(desc_medication, "Output/Descriptives_of_Medications.csv")
 write.csv(table_eligibility_all_criteria, "Output/eligibility_criteria_per_patient.csv")
 #check all can_calc variables
 write.csv(export_table_can_calc, "Output/can_calc_all_variables_per_patient.csv")
+#eligiblity and calc
+write.csv(export_table_eligibility_can_calc, "Output/export_table_eligibility_can_calc.csv")
 #number of eligible and calculable observations per Risk Score
 write.csv(crosstabs_eligibility_availability_chadsvasc, "Output/crosstabs_eligible_calculable_chadsvasc.csv")
 write.csv(crosstabs_eligibility_availability_smart, "Output/crosstabs_eligible_calculable_smart.csv")
