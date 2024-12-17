@@ -1,6 +1,6 @@
 # About ACRIBiS_feasibility
 
-!! Currently restricted to cases from 2023 and 2024 via the encounter resource. Please report any problems to guenther_k1@ukw.de !!
+!! Currently restricted to cases from 2024 via the encounter resource. Please report any problems to guenther_k1@ukw.de !!
 
 The r-files will enable you to conduct the necessary analysis steps for the ACRIBiS-Feasibility. Goal of this project is to gain insights into the availability and completeness of data items required for the calculation of cardiovascular risk scores
 In Addition you will need the folder with LOINC-Codes in the directory from which you run the r-scripts
