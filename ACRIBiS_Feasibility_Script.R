@@ -99,6 +99,7 @@ tabledescription_encounter <- fhir_table_description(
   )
 )
 
+print("Downloading Encounter Bundles.")
 body_encounters <- fhir_body(content = list("date" = "gt2024-01-01", "_count" = page_count))
 request_encounters <- fhir_url(url = diz_url, resource = "Encounter")
 bundles_encounters <- fhir_search(request = request_encounters, body = body_encounters, max_bundles = bundle_limit, username = username, password = password, rm_tag = rm_tag)
@@ -124,6 +125,7 @@ icd10_codes_patient_conditions <- icd_expand(icd10_codes_patient_conditions, col
 
 
 # Identify Required Patients
+print("Downloading Condition Bundles.")
 #download all conditions with respective ICD10-Codes and for patients (subjects) from relevant time frame
 #use "code" as FHIR-Search parameter for Condition resource
 body_patient_conditions <- fhir_body(content = list("code" = paste(icd10_codes_patient_conditions$icd_normcode, collapse = ","), "subject" = paste(relevant_encounter_subjects, collapse = ","), "_count" = page_count))
@@ -152,6 +154,7 @@ LOINC_codes_cholesterol_hdl <- c("14646-4", "2085-9", "49130-8", "18263-4")
 LOINC_codes_hscrp <- c("71426-1", "30522-7", "76486-0")
 LOINC_codes_crp <- c("1988-5", "76485-2", "48421-2")
 LOINC_codes_bmi <- c("39156-5", "89270-3")
+#@KAi: Modified Rankin SClae aus Kriterium für SMART hinterlegen
 LOINC_codes_all <- paste (c(LOINC_codes_height, LOINC_codes_weight, LOINC_codes_bp_overall, LOINC_codes_bp_sys, LOINC_codes_bp_dia, 
                             LOINC_codes_lvef, LOINC_codes_creatinine, LOINC_codes_egfr, LOINC_codes_cholesterol_overall, LOINC_codes_cholesterol_hdl,
                             LOINC_codes_hscrp, LOINC_codes_crp, LOINC_codes_bmi), collapse = ",")
@@ -199,6 +202,7 @@ if (search_for_bundles == TRUE) {
 # (only for first download, then load saved bundles to save time)
 
 # Patients
+print("Downloading Patient Bundles.")
 #create the search body which lists all the found Patient IDs and restricts on specified parameters (birthdate)
 #use "_id" as global FHIR-Search parameter in patient resource
 #Update birthdate, automatisch berechnen
@@ -213,6 +217,7 @@ write(paste(length(bundles_patient), " Bundles for the Patient-Ressource were fo
 
 
 #Condition
+print("Downloading Condition Bundles.")
 #now load all CONDITIONS for relevant patient IDs, to obtain other conditions (comorbidities) of relevant patients
 #use "patient" as FHIR-search parameter in Condition resource
 body_conditions <- fhir_body(content = list("subject" = paste(patient_ids_with_conditions, collapse = ","), "_count" = page_count))
@@ -225,6 +230,7 @@ write(paste(length(bundles_condition), " Bundles for the Condition-Ressource wer
 
 
 # Observation
+print("Downloading Observation Bundles.")
 #use "subject" as FHIR search parameter for Observation resource
 body_observation <- fhir_body(content = list("subject" = paste(patient_ids_with_conditions, collapse = ","), "code" = LOINC_codes_all, "_count" = page_count))
 request_observations <- fhir_url(url = diz_url, resource = "Observation")
@@ -235,6 +241,7 @@ write(paste(length(bundles_observation), " Bundles for the Observation-Ressource
 
 
 # medicationAdministration
+print("Downloading MedicationAdministration Bundles.")
 #use "subject" as FHIR-Search parameter in medicationAdministration resource
 #1. search for all medicationAdministrations of the patients
 body_medicationAdministration <- fhir_body(content = list("subject" = paste(patient_ids_with_conditions, collapse = ","), "_count" = page_count))
@@ -270,6 +277,7 @@ if(is_fhir_bundle_empty(bundles_medicationAdministration) == TRUE) {
 
 
 #2. search for all medications from the identified medication administrations
+print("Downloading Medication Bundles.")
 # Medication
 body_medication <- fhir_body(content = list("_id" = paste(medicationAdministration_ids, collapse = ","), "_count" = page_count))
 request_medications <- fhir_url(url = diz_url, resource = "Medication")
@@ -506,6 +514,9 @@ table_meds$eligible_meds_chadsvasc <- if(nrow(table_meds) == 0) {
 
 
 #SMART
+#@KAI: Rankin Scale? und Alter 30-90 Jahre
+
+
 #between 40 and 80 xears old (validated population)
 table_patients$eligible_patient_age_smart <- ifelse(table_patients$patient_age >= 40 & table_patients$patient_age <= 80, 1, 0)
 #specified conditions of cardiovascular disease that must be present
