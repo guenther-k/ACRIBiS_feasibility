@@ -2,7 +2,10 @@
 # Bitte die folgenden Variablen entsprechend der Gegebenheiten vor Ort anpassen!
 
 # z.B. https://mii-agiop-3p.life.uni-leipzig.de/blaze
-diz_url = ""
+diz_url = "https://mii-agiop-3p.life.uni-leipzig.de/blaze"
+#shorthand for site ending with underscore
+diz_short <- "_"
+
 
 #add maximum number of bundles to enable faster run times for testing (e.g. 10 or 20)
 bundle_limit <- Inf
