@@ -1,5 +1,8 @@
-required_packages <- c("fhircrackr", "dplyr", "sqldf", "BH", "anytime", "ICD10gm", "knitr", "xml2", "lubridate")
 
+#list of required packages
+required_packages <- c("dplyr", "tidyr", "sqldf", "BH", "anytime", "ICD10gm", "knitr", "xml2", "lubridate")
+
+#install each listed package if available
 for(package in required_packages){
   
   available <- suppressWarnings(require(package, character.only = T))
@@ -9,15 +12,18 @@ for(package in required_packages){
   }
 }
 
+#call all packages
+for(package in required_packages){
+  
+  library(package, character.only = TRUE)
+  
+}
+
+
+#install development version of fhircrackr for additional features
+remotes::install_github("https://github.com/POLAR-fhiR/fhircrackr")
 library(fhircrackr)
-library(dplyr)
-library(tidyr)
-library(sqldf)
-library(BH)
-library(anytime)
-library(ICD10gm)
-library(knitr)
-library(xml2)
-library(lubridate)
+
+
 
 
