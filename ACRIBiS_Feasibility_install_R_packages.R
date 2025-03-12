@@ -1,6 +1,6 @@
 
 #list of required packages
-required_packages <- c("dplyr", "tidyr", "sqldf", "BH", "anytime", "ICD10gm", "knitr", "xml2", "lubridate")
+required_packages <- c("dplyr", "tidyr", "sqldf", "BH", "anytime", "ICD10gm", "knitr", "xml2", "lubridate", "remotes")
 
 #install each listed package if available
 for(package in required_packages){
