@@ -540,7 +540,7 @@ maggic_inclusion_icd_codes <- icd_expand(maggic_inclusion_icd_codes, col_icd = "
 # --> not necessary as it is only one code which is checked in ifelse statement below
 
 #define loinc codes for which to check the value (creatinine)
-charge_check_loinc_codes <- c("14682-9", "2160-0", "38483-4", "77140-2")
+#charge_check_loinc_codes <- c("14682-9", "2160-0", "38483-4", "77140-2")
 
 #indicate which score applies by way of indication: CVD = I20 - I25, AF = I48, HF = I50
 table_conditions$condition_cvd <- ifelse(table_conditions$condition_code %in% smart_inclusion_icd_codes$icd_normcode, 1, 0)
@@ -570,7 +570,6 @@ table_meds$eligible_meds_chadsvasc <- if(nrow(table_meds) == 0) {
 
 
 #SMART
-#@KAI: Alter 30-90 Jahre?
 #between 40 and 80 years old (validated population)
 table_patients$eligible_patient_age_smart <- ifelse(table_patients$patient_age >= 40 & table_patients$patient_age <= 80, 1, 0)
 #specified conditions of cardiovascular disease that must be present
@@ -650,7 +649,7 @@ table_conditions_merge_eligible <- table_conditions[, c("condition_subject", "co
                                                         "eligible_conditions_I24_smart", "eligible_conditions_I25_smart", "eligible_conditions_I70_smart", 
                                                         "eligible_conditions_I71_smart", "eligible_conditions_I73_smart", "eligible_conditions_I74_smart", 
                                                         "eligible_conditions_I77_smart", "eligible_conditions_I78_smart", "eligible_conditions_I79_smart",
-                                                        "eligible_conditions_smart", "eligible_conditions_HF_maggic", "eligible_conditions_noprevAF_charge")]
+                                                        "eligible_conditions_smart", "eligible_conditions_HF_maggic")]
 
 #reduce table to 1 entry per patient, if any of the rows have a 1 the patient is eligible (only inclusion criteria, no exclusion)
 table_conditions_merge_eligible_1 <- aggregate(. ~ condition_subject, data = table_conditions_merge_eligible[,c("condition_subject", "condition_cvd", "condition_af", "condition_hf", "eligible_conditions_AF_chadsvasc", "eligible_conditions_I06_smart", "eligible_conditions_I07_smart", 
@@ -661,11 +660,11 @@ table_conditions_merge_eligible_1 <- aggregate(. ~ condition_subject, data = tab
                                                                                                                 "eligible_conditions_I77_smart", "eligible_conditions_I78_smart", "eligible_conditions_I79_smart"
                                                                                                                 , "eligible_conditions_smart", "eligible_conditions_HF_maggic" )], FUN = function(x) ifelse(any(x == 1), 1, 0))
 #reduce table to 1 entry for columns declaring conditions necessary for correct score application, sperate command, as assignment of 1s and 0s is opposite here
-table_conditions_merge_eligible_2 <- aggregate(. ~ condition_subject, data = table_conditions_merge_eligible[,c("condition_subject", "eligible_conditions_noprevAF_charge")], FUN = function(x) ifelse(any(x == 0), 0, 1))
+#table_conditions_merge_eligible_2 <- aggregate(. ~ condition_subject, data = table_conditions_merge_eligible[,c("condition_subject", "eligible_conditions_noprevAF_charge")], FUN = function(x) ifelse(any(x == 0), 0, 1))
 table_conditions_merge_eligible <- merge(table_conditions_merge_eligible_1, table_conditions_merge_eligible_2, by = "condition_subject")
 
 
-table_observations_merge_eligible <- table_observations[, c("observation_subject", "eligible_observations_chadsvasc", "eligible_observations_smart", "eligible_observations_maggic", "eligible_observations_creatinine_charge")]
+table_observations_merge_eligible <- table_observations[, c("observation_subject", "eligible_observations_chadsvasc", "eligible_observations_smart", "eligible_observations_maggic")]
 table_meds_merge_eligible <- table_meds[, c("medicationAdministration_subject", "eligible_meds_chadsvasc", "eligible_meds_smart", "eligible_meds_maggic")]
 
 #reduce table to 1 entry per patient, if any of the rows have a 0 (ineligible), the whole patient becomes ineligible (exclusion criterion)
@@ -782,11 +781,12 @@ if(nrow(table_meds) == 0) {
 
 
 #create tables with selected columns for merge
-table_conditions_merge_can_calc <- table_conditions[, c("condition_subject", "can_calc_conditions_chadsvasc", "can_calc_conditions_smart", "can_calc_conditions_maggic", "can_calc_conditions_charge")]
+table_conditions_merge_can_calc <- table_conditions[, c("condition_subject", "can_calc_conditions_chadsvasc", "can_calc_conditions_smart", "can_calc_conditions_maggic")]
 table_observations_merge_can_calc <- table_observations[, c("observation_subject", "can_calc_observations_chadsvasc", "can_calc_observation_cholesterolhdl_smart", "can_calc_observation_cholesterol_smart",
                                                             "can_calc_observation_bloodpressure_smart", "can_calc_observations_smart", "can_calc_observations_bloodpressure_maggic", "can_calc_observations_lvef_maggic",
-                                                            "can_calc_observations_creatinine_maggic", "can_calc_observations_maggic", "can_calc_observations_bmi_charge", "can_calc_observations_height_charge",
-                                                            "can_calc_observations_weight_charge", "can_calc_observations_charge")]
+                                                            "can_calc_observations_creatinine_maggic", "can_calc_observations_maggic")]
+# "can_calc_observations_bmi_charge", "can_calc_observations_height_charge", "can_calc_observations_weight_charge", "can_calc_observations_charge
+
 table_meds_merge_can_calc <- table_meds[, c("medicationAdministration_subject", "can_calc_meds_chadsvasc", "can_calc_meds_smart", "can_calc_meds_maggic")]
 
 #reduce tables to 1 entry per patient, if any of the rows have a 0 (ineligible), the whole patient becomes ineligible (exclusion criterion)
