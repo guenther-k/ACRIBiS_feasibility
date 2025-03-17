@@ -792,10 +792,7 @@ table_can_calc <- table_eligibility_can_calc %>%
 #where medications are empty/missing, we assume that they are not present, the score can be calculated in either case (however result might not be entirely accurate)
 table_can_calc <- table_can_calc %>%
   mutate(across(c(can_calc_meds_chadsvasc, can_calc_meds_maggic, can_calc_meds_smart), ~replace_na(.,1)))
-
 #Assumption: if Medications or Conditions are missing, the patient does not have them; non-existence cannot be confirmed by routine data 
-table_eligibility_can_calc$any_score_eligible <- rowSums(table_eligibility[, c("eligible_chadsvasc_overall", "eligible_smart_overall", "eligible_maggic_overall")], na.rm = TRUE) > 0
-table_eligibility_can_calc$any_score_can_calc <- rowSums(table_can_calc[, c("can_calc_chadsvasc_overall", "can_calc_smart_overall", "can_calc_maggic_overall")], na.rm = TRUE) > 0
 
 
 # Feasibility Analysis ----------------------------------------------------
@@ -819,11 +816,13 @@ table_eligibility_can_calc$eligible_smart_overall <- apply(table_eligibility[,el
 table_eligibility_can_calc$eligible_maggic_overall <- apply(table_eligibility[,eligibility_available_columns_maggic], 1, function(x) ifelse(any(x == 0), 0, ifelse(any(is.na(x)), NA, 1)))
 # table_eligibility$eligible_charge_overall <- apply(table_eligibility[,eligibility_available_columns_charge], 1, function(x) ifelse(any(x == 0), 0, ifelse(any(is.na(x)), NA, 1)))
 
-#give back result per patient, whether certain criterion has been fulfilled
-table_eligibility_all_criteria <- table_eligibility %>%
+#Currently not needed for analysis
+#give back result per patient, whether certain criterion has been fulfilled; adjusted tor certain columns from larger table, removed select
+table_eligibility_all_criteria <- table_eligibility_can_calc %>%
   group_by(patient_identifier) %>%
-  summarise_all( ~ ifelse(any(. == 1), 1, 0)) %>%
-  select(-patient_identifier, -patient_birthyear, -patient_gender, -patient_age)
+  across(contains("eligible"), ~ ifelse(any(. == 1), 1, 0)) %>%
+  select(-starts_with("patient")) %>%
+  ungroup() 
 
 
 # ability of calculating scores (all parameters that need to be available, are available), absence of parameters is interpreted as not present in patient
@@ -842,9 +841,14 @@ table_can_calc$can_calc_smart_overall <- apply(table_can_calc[,can_calc_availabl
 table_can_calc$can_calc_maggic_overall <- apply(table_can_calc[,can_calc_available_columns_maggic], 1, function(x) ifelse(any(x == 0), 0, ifelse(any(is.na(x)), NA, 1)))
 #table_can_calc$can_calc_charge_overall <- apply(table_can_calc[,can_calc_available_columns_charge], 1, function(x) ifelse(any(x == 0), 0, ifelse(any(is.na(x)), NA, 1)))
 
+#check availability of any score
+table_eligibility_can_calc$any_score_eligible <- rowSums(table_eligibility[, c("eligible_chadsvasc_overall", "eligible_smart_overall", "eligible_maggic_overall")], na.rm = TRUE) > 0
+table_eligibility_can_calc$any_score_can_calc <- rowSums(table_can_calc[, c("can_calc_chadsvasc_overall", "can_calc_smart_overall", "can_calc_maggic_overall")], na.rm = TRUE) > 0
+
 #as last step to include all columns
 export_table_can_calc <- table_can_calc %>%
-  select(-patient_identifier, -patient_birthyear, -patient_gender, -patient_age)
+  select(-starts_with("patient")) %>%
+#check whether this drops all relevant patient information
 
 
 ## check availability of parameters 
@@ -914,10 +918,10 @@ table_eligibility_can_calc[eligible_to_factor] <- lapply(table_eligibility_can_c
 can_calc_to_factor <- grep("can_calc", names(table_eligibility_can_calc), value = TRUE)
 table_eligibility_can_calc[can_calc_to_factor] <- lapply(table_eligibility_can_calc[can_calc_to_factor], function(x) factor(x, levels = c(0, 1)))
 
-#create crosstabulations for combination of eligibility and can_calc for each score
-crosstabs_eligibility_availability_chadsvasc <- table(table_eligibility_can_calc$eligible_chadsvasc_overall, table_eligibility_can_calc$can_calc_chadsvasc_overall, dnn = list("Eligible", "Calculable"))
-crosstabs_eligibility_availability_smart <- table(table_eligibility_can_calc$eligible_smart_overall, table_eligibility_can_calc$can_calc_smart_overall, dnn = list("Eligible", "Calculable"))
-crosstabs_eligibility_availability_maggic <- table(table_eligibility_can_calc$eligible_maggic_overall, table_eligibility_can_calc$can_calc_maggic_overall, dnn = list("Eligible", "Calculable"))
+#create crosstabulations for combination of eligibility and can_calc for each score, currently not required
+# crosstabs_eligibility_availability_chadsvasc <- table(table_eligibility_can_calc$eligible_chadsvasc_overall, table_eligibility_can_calc$can_calc_chadsvasc_overall, dnn = list("Eligible", "Calculable"))
+# crosstabs_eligibility_availability_smart <- table(table_eligibility_can_calc$eligible_smart_overall, table_eligibility_can_calc$can_calc_smart_overall, dnn = list("Eligible", "Calculable"))
+# crosstabs_eligibility_availability_maggic <- table(table_eligibility_can_calc$eligible_maggic_overall, table_eligibility_can_calc$can_calc_maggic_overall, dnn = list("Eligible", "Calculable"))
 #crosstabs_eligibility_availability_charge <- table(table_eligibility_can_calc$eligible_charge_overall, table_eligibility_can_calc$can_calc_charge_overall, dnn = list("Eligible", "Calculable"))
 
 
@@ -930,29 +934,29 @@ prob_can_calc_any_score <- prop.table(table(table_eligibility_can_calc$any_score
 crosstabs_eligibility_can_calc_any_score <- table(table_eligibility_can_calc$any_score_eligible, table_eligibility_can_calc$any_score_can_calc, dnn = c("Eligible", "Calculable"))
 
 
-#Calculate percentage with NAs per Variable for eligible patients for each score
-navalues_inResources_allScores <- filter(table_eligibility_can_calc, table_eligibility_can_calc$any_score_eligible == TRUE) %>%
-  group_by(patient_identifier) %>%
-  summarise_all(~sum(is.na(.)))
-navalues_inResources_allScores <- colSums(navalues_inResources_allScores[-1])
+#Calculate percentage with NAs per Variable for eligible patients for each score; currently not needed for analysis
+# navalues_inResources_allScores <- filter(table_eligibility_can_calc, table_eligibility_can_calc$any_score_eligible == TRUE) %>%
+#   group_by(patient_identifier) %>%
+#   summarise_all(~sum(is.na(.)))
+# navalues_inResources_allScores <- colSums(navalues_inResources_allScores[-1])
 
 
-#create table with condition_cvd & eligible
-table_eligibility_can_calc$smart_with_condition_eligible = ifelse(table_eligibility_can_calc$condition_cvd == 1 & table_eligibility_can_calc$eligible_smart_overall == 1, 1, 0)
-table_eligibility_can_calc$chadsvasc_with_condition_eligible = ifelse(table_eligibility_can_calc$condition_af == 1 & table_eligibility_can_calc$eligible_chadsvasc_overall == 1, 1, 0)
-table_eligibility_can_calc$maggic_with_condition_eligible = ifelse(table_eligibility_can_calc$condition_hf == 1 & table_eligibility_can_calc$eligible_maggic_overall == 1, 1, 0)
+#create table with condition_cvd & eligible; not required for analysis if export_table_eligibility_can_calc is available
+# table_eligibility_can_calc$smart_with_condition_eligible = ifelse(table_eligibility_can_calc$condition_cvd == 1 & table_eligibility_can_calc$eligible_smart_overall == 1, 1, 0)
+# table_eligibility_can_calc$chadsvasc_with_condition_eligible = ifelse(table_eligibility_can_calc$condition_af == 1 & table_eligibility_can_calc$eligible_chadsvasc_overall == 1, 1, 0)
+# table_eligibility_can_calc$maggic_with_condition_eligible = ifelse(table_eligibility_can_calc$condition_hf == 1 & table_eligibility_can_calc$eligible_maggic_overall == 1, 1, 0)
 
-#crete table with condition_cvd and eligible and can_calc
-table_eligibility_can_calc$smart_with_condition_eligible_calc = ifelse(table_eligibility_can_calc$condition_cvd == 1 & table_eligibility_can_calc$eligible_smart_overall == 1 & table_eligibility_can_calc$can_calc_smart == 1, 1, 0)
-table_eligibility_can_calc$chadsvasc_with_condition_eligible = ifelse(table_eligibility_can_calc$condition_af == 1 & table_eligibility_can_calc$eligible_chadsvasc_overall == 1 & table_eligibility_can_calc$can_calc_chadsvasc_overall, 1, 0)
-table_eligibility_can_calc$maggic_with_condition_eligible = ifelse(table_eligibility_can_calc$condition_hf == 1 & table_eligibility_can_calc$eligible_maggic_overall == 1 & table_eligibility_can_calc$can_calc_maggic_overall, 1, 0)
+#crete table with condition_cvd and eligible and can_calc; not required for analysis if export_table_eligibility_can_calc is available
+# table_eligibility_can_calc$smart_with_condition_eligible_calc = ifelse(table_eligibility_can_calc$condition_cvd == 1 & table_eligibility_can_calc$eligible_smart_overall == 1 & table_eligibility_can_calc$can_calc_smart == 1, 1, 0)
+# table_eligibility_can_calc$chadsvasc_with_condition_eligible = ifelse(table_eligibility_can_calc$condition_af == 1 & table_eligibility_can_calc$eligible_chadsvasc_overall == 1 & table_eligibility_can_calc$can_calc_chadsvasc_overall, 1, 0)
+# table_eligibility_can_calc$maggic_with_condition_eligible = ifelse(table_eligibility_can_calc$condition_hf == 1 & table_eligibility_can_calc$eligible_maggic_overall == 1 & table_eligibility_can_calc$can_calc_maggic_overall, 1, 0)
 
 #give out statements after certain chunks to document progress
 write(paste("Analysis Steps were finished at", Sys.time(), "\n"), file = log, append = T)
 
 
 export_table_eligibility_can_calc <- table_eligibility_can_calc %>%
-  select(-patient_identifier, -patient_birthyear, -patient_gender, -patient_age)
+  select(-starts_with("patient"))
 
 # Data Export -------------------------------------------------------------
 message("Writing Results into CSV-Files.\n")
@@ -975,7 +979,7 @@ write.csv(desc_observation, "Output/Descriptives_of_Observations.csv")
 write.csv(desc_conditions, "Output/Descriptives_of_Conditions.csv")
 write.csv(desc_medication, "Output/Descriptives_of_Medications.csv")
 # #check eligibility criteria
-# write.csv(table_eligibility_all_criteria, "Output/eligibility_criteria_per_patient.csv")
+write.csv(table_eligibility_all_criteria, "Output/eligibility_criteria_per_patient.csv")
 # #check all can_calc variables
 # write.csv(export_table_can_calc, "Output/can_calc_all_variables_per_patient.csv")
 #eligiblity and calc
@@ -988,7 +992,7 @@ write.csv(export_table_eligibility_can_calc, "Output/export_table_eligibility_ca
 #number of eligible and calculable observations for any Score
 write.csv(as.data.frame(crosstabs_eligibility_can_calc_any_score, "Output/crosstabs_eligible_calculable_anyscore.csv", row.names = NULL))
 #number patients who have NAs in any of the columns, per Risk Score
-write.csv(navalues_inResources_allScores, "Output/number_of_patients_with_NAs_inResources_allScores.csv")
+#write.csv(navalues_inResources_allScores, "Output/number_of_patients_with_NAs_inResources_allScores.csv")
 #percentage of patients for which score is eligible/can be calculated
 write.csv(prob_eligibility_any_score,"Output/percentage_patients_eligible_anyscore.csv")
 write.csv(prob_can_calc_any_score,"Output/percentage_patients_cancalc_anyscore.csv")
