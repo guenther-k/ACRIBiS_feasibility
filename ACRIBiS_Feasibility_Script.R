@@ -89,7 +89,7 @@ tabledescription_condition <- fhir_table_description(
 )
 
 
-# Limit to last years patient ----------------------------------------------
+# Limit to patients in 2024 ----------------------------------------------
 
 tabledescription_encounter <- fhir_table_description(
   resource = "Encounter",
@@ -100,7 +100,7 @@ tabledescription_encounter <- fhir_table_description(
 )
 
 print("Downloading Encounter Bundles.")
-body_encounters <- fhir_body(content = list("date" = "gt2024-01-01", "_count" = page_count))
+body_encounters <- fhir_body(content = list("date" = "gt2024-01-01", "date" = "le2024-12-31", "_count" = page_count))
 request_encounters <- fhir_url(url = diz_url, resource = "Encounter")
 bundles_encounters <- fhir_search(request = request_encounters, body = body_encounters, max_bundles = bundle_limit, username = username, password = password, rm_tag = rm_tag, stop_on_error = 0)
 if(length(bundles_encounters)==0){
@@ -112,8 +112,6 @@ table_encounter <- fhir_crack(bundles = bundles_encounters, design = tabledescri
 
 #ggf. anpassen (Bezeichung in Spalte eventuell je nach Server unterschiedlich)
 relevant_encounter_subjects <- sub("Patient/", "", table_encounter$encounter_subject)
-
-
 
 
 
@@ -129,7 +127,7 @@ icd10_codes_patient_conditions <- icd_expand(icd10_codes_patient_conditions, col
 
 
 # Identify Required Patients
-print("Downloading Condition Bundles.")
+print("Downloading Condition Bundles to identify relevant patients.")
 #download all conditions with respective ICD10-Codes and for patients (subjects) from relevant time frame
 #use "code" as FHIR-Search parameter for Condition resource
 body_patient_conditions <- fhir_body(content = list("code" = paste(icd10_codes_patient_conditions$icd_normcode, collapse = ","), "subject" = paste(relevant_encounter_subjects, collapse = ","), "_count" = page_count))
@@ -143,8 +141,8 @@ if(length(bundles_patient_conditions)==0){
 table_patient_conditions <- fhir_crack(bundles = bundles_patient_conditions, design = tabledescription_condition, verbose = 1)
 
 #search for patients who have the specified conditions
-#remove "Patient/" prefix from referenced Patient IDs
 patient_ids_with_conditions_prefix <- table_patient_conditions$condition_subject
+#remove "Patient/" prefix from referenced Patient IDs
 patient_ids_with_conditions <- sub("Patient/", "", table_patient_conditions$condition_subject)
 
 
@@ -183,7 +181,7 @@ medications_acei_arb <- c("C09AA07", "C09BA07", "C09BA27", "C09AA01", "C09BA01",
                           "C09BB02", "C09BB06", "C09AA09", "C09BA09", "C09BA29", "C09AA16", "C09AA03", "C09BB03", "C09BA03", "C09BA23", "C09AA13", "C09BA13", 
                           "C09BA33", "C09AA04", "C09BX01", "C09BX04", "C09BB04", "C09BX02", "C09BA04", "C09BA54", "C09AA06", "C09BA06", "C09BA26", "C09AA05", 
                           "C09BX03", "C09BB07", "C09BX05", "C09BA05", "C09BB05", "C09BA25", "C09BA55", "C09AA10", "C09BB10", "C09AA15", "C09BA15", "C09BA35",
-                          #ARB
+#ARB
                           "C09CA09", "C09DA09", "C09CA06", "C09DX06", "C09DB07", "C09DA06", "C09DA26", "C10BX19", "C09CA02", "C09DA02", "C09DA22", "C09CA04", 
                           "C09DX07", "C09DB05", "C09DA04", "C09DA24", "C09CA01", "C09DB06", "C09DA01", "C09DA21", "C09CA08", "C09DX03", "C09DB02", "C09DA08", 
                           "C09DA28", "C09CA07", "C09DB04", "C09DA07", "C09DA27", "C09CA03", "C09DX01", "C09DX02", "C09DB01", "C09DA03", "C09DA23", "C09DB08", 
@@ -206,7 +204,7 @@ write(paste("Finished Setup at", Sys.time(), "\n"), file = log, append = T)
 
 
 if (search_for_bundles == TRUE) {
-# FHIR Searches -----------------------------------------------------------
+# FHIR Searches ------------------------------------------------------------------------------------------------------------------------------------------------------------
 # (only for first download, then load saved bundles to save time)
 
 # Patients
@@ -280,13 +278,15 @@ if(is_fhir_bundle_empty(bundles_medicationAdministration) == TRUE) {
   message("The bundle you are trying to crack is empty. This will result in an error. Therefore the bundle will not be cracked. An empty table will be created instead.")
   #create empty list of medications in the medicationAdministrations of the Patients to fill in next step
   medicationAdministration_ids <- ""
-  table_medicationAdministrations <- data.frame(medicationAdministration_identifier            = character(),
-                                                medicationAdministration_subject               = character(), 
-                                                medicationAdministration_status                = character(),
-                                                medicationAdministration_medication_reference  = character(),
-                                                medicationAdministration_effective_dateTime    = character(),
-                                                medicationAdministration_effective_period      = character(),
+  table_medicationAdministrations <- data.frame(medicationAdministration_identifier            = character(length(unique(patient_ids_with_conditions))),
+                                                medicationAdministration_subject               = unique(patient_ids_with_conditions), 
+                                                medicationAdministration_status                = character(length(unique(patient_ids_with_conditions))),
+                                                medicationAdministration_medication_reference  = character(length(unique(patient_ids_with_conditions))),
+                                                medicationAdministration_effective_dateTime    = character(length(unique(patient_ids_with_conditions))),
+                                                medicationAdministration_effective_period      = character(length(unique(patient_ids_with_conditions))),
                                                 stringsAsFactors = FALSE)
+  
+
 
 } else {
   message("Cracking ", length(bundles_medicationAdministration), " medicationAdministration Bundles.\n")
@@ -311,7 +311,7 @@ if(length(bundles_observation)==0){
   bundles_medication <- fhir_search(request = request_medications, body = body_medication, max_bundles = bundle_limit, username = username, password = password, rm_tag = rm_tag, stop_on_error = 0)
 }
 
-# Save Bundles ------------------------------------------------------------
+# Save Bundles -------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 if (save_bundles == TRUE)   {
 # (only after first download) move to FHIR Search section (so far only medicationAdministration)
@@ -326,7 +326,7 @@ fhir_save(bundles = bundles_medication, directory = "XML_Bundles/bundles_medicat
 write(paste("Saved Bundles at ", Sys.time(), "\n"), file = log, append = T)
  }
 } else {
-# Load Bundles ------------------------------------------------------------
+# Load Bundles ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 #executed if search_for_bundles == FALSE
 message("Loading saved Bundles.\n")
 bundles_patient <- fhir_load(directory = "XML_Bundles/bundles_patient")
@@ -339,7 +339,7 @@ write(paste("Loaded Bundles at", Sys.time(), "\n"), file = log, append = T)
  }
 
 
-# Crack Into Tables -------------------------------------------------------
+# Crack Into Tables -----------------------------------------------------------------------------------------------------------------------------------------------------------
 #crack bundles into table
 
 if(is_fhir_bundle_empty(bundles_patient) == TRUE) {
@@ -356,12 +356,12 @@ write(paste(nrow(table_patients), " Elements were created for Patients \n"), fil
 
 if(is_fhir_bundle_empty(bundles_condition) == TRUE) {
   message("The bundle you are trying to crack is empty. This will result in an error. Therefore the bundle will not be cracked. An empty table has been created.")
-  table_conditions <- data.frame(condition_identifier     = character(),
-                                 condition_code           = character(),
-                                 condition_system         = character(),
-                                 condition_recordedDate   = as.Date(character()),
-                                 condition_onsetDate      = as.Date(character()),
-                                 condition_subject        = character())
+  table_conditions <- data.frame(condition_identifier     = character(length(unique(patient_ids_with_conditions))),
+                                 condition_code           = character(length(unique(patient_ids_with_conditions))),
+                                 condition_system         = character(length(unique(patient_ids_with_conditions))),
+                                 condition_recordedDate   = as.Date(character(length(unique(patient_ids_with_conditions)))),
+                                 condition_onsetDate      = as.Date(character(length(unique(patient_ids_with_conditions)))),
+                                 condition_subject        = unique(patient_ids_with_conditions))
 } else {
 message("Cracking ", length(bundles_condition), " Condition Bundles.\n")
 table_conditions <- fhir_crack(bundles = bundles_condition, design = tabledescription_condition, verbose = 1)
@@ -370,12 +370,12 @@ write(paste(nrow(table_conditions), " Elements were created for Conditions \n"),
 
 if(is_fhir_bundle_empty(bundles_observation) == TRUE) {
   message("The bundle you are trying to crack is empty. This will result in an error. Therefore the bundle will not be cracked. An empty table has been created.")
-  table_observations <- data.frame(observation_identifier  = character(),
-                                   observation_subject     = character(),
-                                   observation_code        = character(),
-                                   observation_value       = numeric(),
-                                   observation_unit        = character(),
-                                   observation_datetime    = as.Date(character()))
+  table_observations <- data.frame(observation_identifier  = character(length(unique(patient_ids_with_conditions))),
+                                   observation_subject     = unique(patient_ids_with_conditions),
+                                   observation_code        = character(length(unique(patient_ids_with_conditions))),
+                                   observation_value       = numeric(length(unique(patient_ids_with_conditions))),
+                                   observation_unit        = character(length(unique(patient_ids_with_conditions))),
+                                   observation_datetime    = as.Date(character(length(unique(patient_ids_with_conditions)))))
 } else {
 message("Cracking ", length(bundles_observation), " Observation Bundles.\n")
 table_observations <- fhir_crack(bundles = bundles_observation, design = tabledescription_observation, verbose = 1)
@@ -399,7 +399,7 @@ if(is_fhir_bundle_empty(bundles_medicationAdministration) == TRUE) {
   table_medications <- fhir_crack(bundles = bundles_medication, design = tabledescription_medication, verbose = 1)
   write(paste(nrow(table_medications), " Elements were created for Medications \n"), file = log, append = T)
 }
-#give out statements after certain chunks to document progress
+#Log Documentation
 write(paste("Finished Search for Medication-Ressources at", Sys.time(), "\n"), file = log, append = T)
 write(paste(length(bundles_medication), " Bundles for the Medication-Ressource were found \n"), file = log, append = T)
 
@@ -419,7 +419,7 @@ if(length(table_patients$patient_identifier)==0){
 write(paste("Bundles were cracked into tables at", Sys.time(), "\n"), file = log, append = T)
 
 
-# Data Cleaning -----------------------------------------------------------
+# Data Cleaning ---------------------------------------------------------------------------------------------------------------------------------------------------------------------
 message("Cleaning the Data.\n")
 
 #convert birthday to birthyear and calculate age
@@ -427,7 +427,7 @@ message("Cleaning the Data.\n")
 if(is_fhir_bundle_empty(bundles_patient) == TRUE) {
   message("The action you trying to carry out is not possible due to empty resources. Executing the action would result in an error. Therefore the action will not be carried out.")
 } else {
-#apply function to date coulumn
+#apply function to date column
 if("patient_birthdate" %in% names(table_patients)){
 table_patients$patient_birthdate <- sapply(table_patients$patient_birthdate, convert_date_to_year)
 } else {
@@ -454,13 +454,6 @@ table_observations$observation_datetime <- ymd_hms(table_observations$observatio
 #calculate time since onset for all conditions 
 table_conditions$time_since_first_diagnosis_using_recordeddate <- difftime(Sys.time(), table_conditions$condition_recordedDate, units = "days")
 table_conditions$time_since_first_diagnosis_using_onsetdate <- difftime(Sys.time(), table_conditions$condition_onsetDate, units = "days")
-#calculate average time since diagnosis for each condition (selecting average time for first HKE diagnosis possible) (I05-I09, I20-I25, I30-I52)
-# time_since_first_diagnosis_recorded <- table_conditions %>%
-#   group_by(table_conditions$condition_code) %>%
-#   summarise(average_time_since_first_diagnosis = mean(time_since_first_diagnosis_using_recordeddate, na.rm = TRUE))
-# time_since_first_diagnosis_onset <- table_conditions %>%
-#   group_by(table_conditions$condition_code) %>%
-#   summarise(average_time_since_first_diagnosis = mean(time_since_first_diagnosis_using_onsetdate, na.rm = TRUE))
 
 
 #import table with LOINC Code for reference, send CSV with Script, change path to be universally applicable
@@ -477,13 +470,12 @@ table_observations$observation_subject <- sub("Patient/", "", table_observations
 table_medicationAdministrations$medicationAdministration_subject <- sub("Patient/", "", table_medicationAdministrations$medicationAdministration_subject) 
 table_medicationAdministrations$medicationAdministration_medication_reference <- sub("Medication/", "", table_medicationAdministrations$medicationAdministration_medication_reference)
 
-
 #give out statements after certain chunks to document progress
 write(paste("Data Cleaning was finished at", Sys.time(), "\n"), file = log, append = T)
 
 
 
-# Additional columns for analysis  ----------------------------------------------------------
+# Additional columns for analysis  ----------------------------------------------------------------------------------------------------------------------------------------------
 #column with time since first CVD Diagnosis for each patient
 #calculate time since first Cardiovascular Diagnosis (I05-I09, I20-I25, I30-I52) taking into consideration both dates (no matter if diagnosed or documented, the event exists)
 
@@ -533,75 +525,63 @@ smart_inclusion_icd_codes <- icd_expand(smart_inclusion_icd_codes, col_icd = "ic
 maggic_inclusion_icd_codes <- data.frame(icd_code = c("I50"))
 maggic_inclusion_icd_codes <- icd_expand(maggic_inclusion_icd_codes, col_icd = "icd_code", year = 2023)
 
-## CHARGE-AF
-#46 < age < 94, creatinine < 2mg/dl (14682-9, 2160-0 (38483-4, 77140-2)), no I48
-# chargeaf_exclusion_icd_codes <- chargeaf_exclusion_icd_codes <- data.frame(icd_code = c("I48"))
-# chargeaf_exclusion_icd_codes <- icd_expand(chargeaf_exclusion_icd_codes, col_icd = "icd_code", year = 2023)
-# --> not necessary as it is only one code which is checked in ifelse statement below
-
-#define loinc codes for which to check the value (creatinine)
-#charge_check_loinc_codes <- c("14682-9", "2160-0", "38483-4", "77140-2")
 
 #indicate which score applies by way of indication: CVD = I20 - I25, AF = I48, HF = I50
-table_conditions$condition_cvd <- ifelse(table_conditions$condition_code %in% smart_inclusion_icd_codes$icd_normcode, 1, 0)
-table_conditions$condition_af <- ifelse(table_conditions$condition_code %in% chadsvasc_inclusion_icd_codes$icd_normcode, 1, 0)
-table_conditions$condition_hf <- ifelse(table_conditions$condition_code %in% maggic_inclusion_icd_codes$icd_normcode, 1, 0)
-
+table_conditions$condition_cvd <- ifelse(!is.na(table_conditions$condition_code) & table_conditions$condition_code %in% smart_inclusion_icd_codes$icd_normcode, 1, 0)
+table_conditions$condition_af <- ifelse(!is.na(table_conditions$condition_code) & table_conditions$condition_code %in% chadsvasc_inclusion_icd_codes$icd_normcode, 1, 0)
+table_conditions$condition_hf <- ifelse(!is.na(table_conditions$condition_code) & table_conditions$condition_code %in% maggic_inclusion_icd_codes$icd_normcode, 1, 0)
 
 
 ## Eligibility Assessment ----------------------
-#create additinal columns in oroginal resources tables, later extract relevant columns for eligibility/can_calc if necessary
+#create additional columns in original resources tables, later extract relevant columns for eligibility/can_calc if necessary
+#NAs result in "Ineligibility" and "cannot calc"
 #eligibility column in each resource table for each score per patient
-
-#hier erste Anpassung der PAtient-Tabelle @KAI
-
 
 #CHADSVASC
 #18years or older
-table_patients$eligible_patient_age_chadsvasc <- ifelse(table_patients$patient_age >= 18, 1, 0)
+table_patients$eligible_patient_age_chadsvasc <- ifelse(!is.na(table_patients$patient_age) & table_patients$patient_age >= 18, 1, 0)
 #specified conditions of atrial fibrillation
-table_conditions$eligible_conditions_AF_chadsvasc <- ifelse(table_conditions$condition_code %in% chadsvasc_inclusion_icd_codes$icd_normcode & (table_conditions$condition_time_since_first_cvd < 366), 1, 0)
+table_conditions$eligible_conditions_AF_chadsvasc <- ifelse(!is.na(table_conditions$condition_code) & table_conditions$condition_code %in% chadsvasc_inclusion_icd_codes$icd_normcode & (table_conditions$condition_time_since_first_cvd < 366), 1, 0)
 #potentially insert heart valve surgery if module for procedures is available
 table_conditions$eligible_conditions_AF_chadsvasc <- ifelse(table_conditions$condition_code %in% chadsvasc_exclusion_icd_codes$icd_normcode, 0, table_conditions$eligible_conditions_AF_chadsvasc)
 #no eligibility criteria regarding observations for chadsvasc
 table_observations$eligible_observations_chadsvasc <- 1
 #no eligibility criteria regarding observations for chadsvasc
-table_meds$eligible_meds_chadsvasc <- if(nrow(table_meds) == 0) {
-  table_meds$eligible_meds_chadsvasc <- numeric(0)
+table_meds$eligible_meds_chadsvasc <- if(is_fhir_bundle_empty(bundles_medicationAdministration) == TRUE) {
+  table_meds$eligible_meds_chadsvasc <- 0
 } else {
   table_meds$eligible_meds_chadsvasc <- 1
   }
 
-
 #SMART
 #between 40 and 80 years old (validated population)
-table_patients$eligible_patient_age_smart <- ifelse(table_patients$patient_age >= 40 & table_patients$patient_age <= 80, 1, 0)
+table_patients$eligible_patient_age_smart <- ifelse(!is.na(table_patients$patient_age) & table_patients$patient_age >= 40 & table_patients$patient_age <= 80, 1, 0)
 #specified conditions of cardiovascular disease that must be present
 #check each
-table_conditions$eligible_conditions_I06_smart <- ifelse(table_conditions$condition_code %in% icd_expand(data.frame(icd_code = "I06"), col_icd = "icd_code", year = 2023)$icd_normcode, 1, 0)
-table_conditions$eligible_conditions_I07_smart <- ifelse(table_conditions$condition_code %in% icd_expand(data.frame(icd_code = "I07"), col_icd = "icd_code", year = 2023)$icd_normcode, 1, 0)
-table_conditions$eligible_conditions_I08_smart <- ifelse(table_conditions$condition_code %in% icd_expand(data.frame(icd_code = "I08"), col_icd = "icd_code", year = 2023)$icd_normcode, 1, 0)
-table_conditions$eligible_conditions_I09_smart <- ifelse(table_conditions$condition_code %in% icd_expand(data.frame(icd_code = "I09"), col_icd = "icd_code", year = 2023)$icd_normcode, 1, 0)
-table_conditions$eligible_conditions_I20_smart <- ifelse(table_conditions$condition_code %in% icd_expand(data.frame(icd_code = "I20"), col_icd = "icd_code", year = 2023)$icd_normcode, 1, 0)
-table_conditions$eligible_conditions_I21_smart <- ifelse(table_conditions$condition_code %in% icd_expand(data.frame(icd_code = "I21"), col_icd = "icd_code", year = 2023)$icd_normcode, 1, 0)
-table_conditions$eligible_conditions_I22_smart <- ifelse(table_conditions$condition_code %in% icd_expand(data.frame(icd_code = "I22"), col_icd = "icd_code", year = 2023)$icd_normcode, 1, 0)
-table_conditions$eligible_conditions_I23_smart <- ifelse(table_conditions$condition_code %in% icd_expand(data.frame(icd_code = "I23"), col_icd = "icd_code", year = 2023)$icd_normcode, 1, 0)
-table_conditions$eligible_conditions_I24_smart <- ifelse(table_conditions$condition_code %in% icd_expand(data.frame(icd_code = "I24"), col_icd = "icd_code", year = 2023)$icd_normcode, 1, 0)
-table_conditions$eligible_conditions_I25_smart <- ifelse(table_conditions$condition_code %in% icd_expand(data.frame(icd_code = "I25"), col_icd = "icd_code", year = 2023)$icd_normcode, 1, 0)
-table_conditions$eligible_conditions_I70_smart <- ifelse(table_conditions$condition_code %in% icd_expand(data.frame(icd_code = "I70"), col_icd = "icd_code", year = 2023)$icd_normcode, 1, 0)
-table_conditions$eligible_conditions_I71_smart <- ifelse(table_conditions$condition_code %in% icd_expand(data.frame(icd_code = "I71"), col_icd = "icd_code", year = 2023)$icd_normcode, 1, 0)
-table_conditions$eligible_conditions_I73_smart <- ifelse(table_conditions$condition_code %in% icd_expand(data.frame(icd_code = "I73"), col_icd = "icd_code", year = 2023)$icd_normcode, 1, 0)
-table_conditions$eligible_conditions_I74_smart <- ifelse(table_conditions$condition_code %in% icd_expand(data.frame(icd_code = "I74"), col_icd = "icd_code", year = 2023)$icd_normcode, 1, 0)
-table_conditions$eligible_conditions_I77_smart <- ifelse(table_conditions$condition_code %in% icd_expand(data.frame(icd_code = "I77"), col_icd = "icd_code", year = 2023)$icd_normcode, 1, 0)
-table_conditions$eligible_conditions_I78_smart <- ifelse(table_conditions$condition_code %in% icd_expand(data.frame(icd_code = "I78"), col_icd = "icd_code", year = 2023)$icd_normcode, 1, 0)
-table_conditions$eligible_conditions_I79_smart <- ifelse(table_conditions$condition_code %in% icd_expand(data.frame(icd_code = "I79"), col_icd = "icd_code", year = 2023)$icd_normcode, 1, 0)
+table_conditions$eligible_conditions_I06_smart <- ifelse(!is.na(table_conditions$condition_code) & table_conditions$condition_code %in% icd_expand(data.frame(icd_code = "I06"), col_icd = "icd_code", year = 2023)$icd_normcode, 1, 0)
+table_conditions$eligible_conditions_I07_smart <- ifelse(!is.na(table_conditions$condition_code) & table_conditions$condition_code %in% icd_expand(data.frame(icd_code = "I07"), col_icd = "icd_code", year = 2023)$icd_normcode, 1, 0)
+table_conditions$eligible_conditions_I08_smart <- ifelse(!is.na(table_conditions$condition_code) & table_conditions$condition_code %in% icd_expand(data.frame(icd_code = "I08"), col_icd = "icd_code", year = 2023)$icd_normcode, 1, 0)
+table_conditions$eligible_conditions_I09_smart <- ifelse(!is.na(table_conditions$condition_code) & table_conditions$condition_code %in% icd_expand(data.frame(icd_code = "I09"), col_icd = "icd_code", year = 2023)$icd_normcode, 1, 0)
+table_conditions$eligible_conditions_I20_smart <- ifelse(!is.na(table_conditions$condition_code) & table_conditions$condition_code %in% icd_expand(data.frame(icd_code = "I20"), col_icd = "icd_code", year = 2023)$icd_normcode, 1, 0)
+table_conditions$eligible_conditions_I21_smart <- ifelse(!is.na(table_conditions$condition_code) & table_conditions$condition_code %in% icd_expand(data.frame(icd_code = "I21"), col_icd = "icd_code", year = 2023)$icd_normcode, 1, 0)
+table_conditions$eligible_conditions_I22_smart <- ifelse(!is.na(table_conditions$condition_code) & table_conditions$condition_code %in% icd_expand(data.frame(icd_code = "I22"), col_icd = "icd_code", year = 2023)$icd_normcode, 1, 0)
+table_conditions$eligible_conditions_I23_smart <- ifelse(!is.na(table_conditions$condition_code) & table_conditions$condition_code %in% icd_expand(data.frame(icd_code = "I23"), col_icd = "icd_code", year = 2023)$icd_normcode, 1, 0)
+table_conditions$eligible_conditions_I24_smart <- ifelse(!is.na(table_conditions$condition_code) & table_conditions$condition_code %in% icd_expand(data.frame(icd_code = "I24"), col_icd = "icd_code", year = 2023)$icd_normcode, 1, 0)
+table_conditions$eligible_conditions_I25_smart <- ifelse(!is.na(table_conditions$condition_code) & table_conditions$condition_code %in% icd_expand(data.frame(icd_code = "I25"), col_icd = "icd_code", year = 2023)$icd_normcode, 1, 0)
+table_conditions$eligible_conditions_I70_smart <- ifelse(!is.na(table_conditions$condition_code) & table_conditions$condition_code %in% icd_expand(data.frame(icd_code = "I70"), col_icd = "icd_code", year = 2023)$icd_normcode, 1, 0)
+table_conditions$eligible_conditions_I71_smart <- ifelse(!is.na(table_conditions$condition_code) & table_conditions$condition_code %in% icd_expand(data.frame(icd_code = "I71"), col_icd = "icd_code", year = 2023)$icd_normcode, 1, 0)
+table_conditions$eligible_conditions_I73_smart <- ifelse(!is.na(table_conditions$condition_code) & table_conditions$condition_code %in% icd_expand(data.frame(icd_code = "I73"), col_icd = "icd_code", year = 2023)$icd_normcode, 1, 0)
+table_conditions$eligible_conditions_I74_smart <- ifelse(!is.na(table_conditions$condition_code) & table_conditions$condition_code %in% icd_expand(data.frame(icd_code = "I74"), col_icd = "icd_code", year = 2023)$icd_normcode, 1, 0)
+table_conditions$eligible_conditions_I77_smart <- ifelse(!is.na(table_conditions$condition_code) & table_conditions$condition_code %in% icd_expand(data.frame(icd_code = "I77"), col_icd = "icd_code", year = 2023)$icd_normcode, 1, 0)
+table_conditions$eligible_conditions_I78_smart <- ifelse(!is.na(table_conditions$condition_code) & table_conditions$condition_code %in% icd_expand(data.frame(icd_code = "I78"), col_icd = "icd_code", year = 2023)$icd_normcode, 1, 0)
+table_conditions$eligible_conditions_I79_smart <- ifelse(!is.na(table_conditions$condition_code) & table_conditions$condition_code %in% icd_expand(data.frame(icd_code = "I79"), col_icd = "icd_code", year = 2023)$icd_normcode, 1, 0)
 #check any
-table_conditions$eligible_conditions_smart <- ifelse(table_conditions$condition_code %in% smart_inclusion_icd_codes$icd_normcode, 1, 0)
-#rankin scale mus be 3 or less, LOINC: 75859-9
-table_observations$eligible_observations_smart <- ifelse(table_observations$observation_code %in% LOINC_code_rankin_scale & table_observations$observation_value_num > 3, 0, 1)
+table_conditions$eligible_conditions_smart <- ifelse(!is.na(table_conditions$condition_code) & table_conditions$condition_code %in% smart_inclusion_icd_codes$icd_normcode, 1, 0)
+#rankin scale must be 3 or less, LOINC: 75859-9
+table_observations$eligible_observations_smart <- ifelse(!is.na(table_observations$observation_code) & table_observations$observation_code %in% LOINC_code_rankin_scale & table_observations$observation_value_num > 3, 0, 1)
 #if there are no medications, SMART eligibility cannot be determined
-if(nrow(table_meds) == 0) {
-  table_meds$eligible_meds_smart <- numeric(0)
+if(is_fhir_bundle_empty(bundles_medicationAdministration) == TRUE) {
+  table_meds$eligible_meds_smart <- 0
 } else {
     table_meds$eligible_meds_smart <- 1
   }
@@ -609,40 +589,23 @@ if(nrow(table_meds) == 0) {
 
 #MAGGIC
 #18years or older
-table_patients$eligible_patient_maggic <- ifelse(table_patients$patient_age >= 18, 1, 0)
+table_patients$eligible_patient_maggic <- ifelse(!is.na(table_patients$patient_age) & table_patients$patient_age >= 18, 1, 0)
 #specified conditions of heart failure
-table_conditions$eligible_conditions_HF_maggic <- ifelse(table_conditions$condition_code %in% maggic_inclusion_icd_codes$icd_normcode, 1, 0)
+table_conditions$eligible_conditions_HF_maggic <- ifelse(!is.na(table_conditions$condition_code) & table_conditions$condition_code %in% maggic_inclusion_icd_codes$icd_normcode, 1, 0)
 #no eligibility criteria regarding observations for maggic
 table_observations$eligible_observations_maggic <- 1
 #no eligibility criteria regarding medications for maggic
-if(nrow(table_meds) == 0) {
-  table_meds$eligible_meds_maggic <- numeric(0)
+if(is_fhir_bundle_empty(bundles_medicationAdministration) == TRUE) {
+  table_meds$eligible_meds_maggic <- 0
 } else {
   table_meds$eligible_meds_maggic <- 1
   }
 
-# #CHARGE-AF
-# #between 46 and 94 years
-# table_patients$eligible_patient_charge <- ifelse(table_patients$patient_age >= 46 & table_patients$patient_age <= 94, 1, 0) 
-# #specified conditions of no prior atrial fibrillation
-# table_conditions$eligible_conditions_noprevAF_charge <- ifelse(table_conditions$condition_code_short != "I48", 1, 0)
-# #creatinine value below 2, valus in ifelse statement reversed as this is an exclusion criterion                                   
-# #creat case when for combinations of units and values                                        moles per volume, presumably micromole per Litre; converted from mg/dL
-# table_observations$eligible_observations_creatinine_charge <- case_when(table_observations$observation_code == "14682-9" & table_observations$observation_value > 177 ~ 0,
-#                                                                                                                               #mass per volume, presumably mg/dL
-#                                                              table_observations$observation_code == "2160-0" & table_observations$observation_value > 2 ~ 0,
-#                                                                                                                                #mass per volume, presumably mg/dL
-#                                                              table_observations$observation_code == "38483-4" & table_observations$observation_value > 2 ~ 0,
-#                                                                                            #moles per volume, presumably micromole per Litre; converted from mg/dL
-#                                                              table_observations$observation_code == "14682-9" & table_observations$observation_value > 177 ~ 0,
-#                                                              
-#                                                              TRUE ~ 1)
-# #no eligibility criteria regarding medications for charge
-# if(nrow(table_meds) == 0) {
-#   table_meds$eligible_meds_charge <- numeric(0)
-# } else {
-#   table_meds$eligible_meds_charge <- 1
-#   }
+#alt
+# #if medications were empty, automatically assign 1 to eligibility
+# if (nrow(table_meds_merge_eligible) > 0) {table_eligibility$eligible_meds_chadsvasc[is.na(table_eligibility$eligible_meds_chadsvasc)] <- 1}  
+# if (nrow(table_meds_merge_eligible) > 0) {table_eligibility$eligible_meds_smart[is.na(table_eligibility$eligible_meds_smart)] <- 1}
+# if (nrow(table_meds_merge_eligible) > 0) {table_eligibility$eligible_meds_maggic[is.na(table_eligibility$eligible_meds_maggic)] <- 1}
 
 
 #create tables with selected columns for merge
@@ -656,17 +619,13 @@ table_conditions_merge_eligible <- table_conditions[, c("condition_subject", "co
                                                         "eligible_conditions_smart", "eligible_conditions_HF_maggic")]
 
 #reduce table to 1 entry per patient, if any of the rows have a 1 the patient is eligible (only inclusion criteria, no exclusion)
-table_conditions_merge_eligible_1 <- aggregate(. ~ condition_subject, data = table_conditions_merge_eligible[,c("condition_subject", "condition_cvd", "condition_af", "condition_hf", "eligible_conditions_AF_chadsvasc", "eligible_conditions_I06_smart", "eligible_conditions_I07_smart", 
+table_conditions_merge_eligible <- aggregate(. ~ condition_subject, data = table_conditions_merge_eligible[,c("condition_subject", "condition_cvd", "condition_af", "condition_hf", "eligible_conditions_AF_chadsvasc", "eligible_conditions_I06_smart", "eligible_conditions_I07_smart", 
                                                                                                                 "eligible_conditions_I08_smart", "eligible_conditions_I09_smart", "eligible_conditions_I20_smart", 
                                                                                                                 "eligible_conditions_I21_smart", "eligible_conditions_I22_smart", "eligible_conditions_I23_smart", 
                                                                                                                 "eligible_conditions_I24_smart", "eligible_conditions_I25_smart", "eligible_conditions_I70_smart", 
                                                                                                                 "eligible_conditions_I71_smart", "eligible_conditions_I73_smart", "eligible_conditions_I74_smart", 
                                                                                                                 "eligible_conditions_I77_smart", "eligible_conditions_I78_smart", "eligible_conditions_I79_smart"
                                                                                                                 , "eligible_conditions_smart", "eligible_conditions_HF_maggic" )], FUN = function(x) ifelse(any(x == 1), 1, 0))
-#reduce table to 1 entry for columns declaring conditions necessary for correct score application, sperate command, as assignment of 1s and 0s is opposite here
-#table_conditions_merge_eligible_2 <- aggregate(. ~ condition_subject, data = table_conditions_merge_eligible[,c("condition_subject", "eligible_conditions_noprevAF_charge")], FUN = function(x) ifelse(any(x == 0), 0, 1))
-#not necessary anymore, removed table_conditions_merge_eligible_2
-#table_conditions_merge_eligible <- merge(table_conditions_merge_eligible_1, table_conditions_merge_eligible_2, by = "condition_subject")
 
 
 table_observations_merge_eligible <- table_observations[, c("observation_subject", "eligible_observations_chadsvasc", "eligible_observations_smart", "eligible_observations_maggic")]
@@ -677,29 +636,11 @@ table_observations_merge_eligible <- aggregate(. ~ observation_subject, data = t
 if (nrow(table_meds_merge_eligible) > 0) {table_meds_merge_eligible <- aggregate(. ~ medicationAdministration_subject, data = table_meds_merge_eligible, FUN = function(x) ifelse(any(x == 0), 0, 1))}
 
 
-#remove, create table by merging everything an only selecting columns with "eligible"
-#merge eligibility columns into new table with patients, identifier dropped later
-# table_eligibility <- table_patients
-# table_eligibility <- merge(table_eligibility, table_conditions_merge_eligible, by.x = "patient_identifier", by.y = "condition_subject", all.x = TRUE)
-# table_eligibility <- merge(table_eligibility, table_observations_merge_eligible, by.x = "patient_identifier", by.y = "observation_subject", all.x = TRUE)
-# table_eligibility <- merge(table_eligibility, table_meds_merge_eligible, by.x = "patient_identifier", by.y = "medicationAdministration_subject", all.x = TRUE)
-
-#hier alle Einträge die nicht 0 sind auf 1 setzen, da wenn medication nich vorhanden sind, davon ausgegangen werden muss, dass sie nicht verabreicht werden
-# if (nrow(table_meds_merge_eligible) > 0) {table_eligibility$eligible_meds_chadsvasc <- if(is.na(table_eligibility$eligible_meds_chadsvasc)){table_eligibility$eligible_meds_chadsvasc <- 1}}  
-# if (nrow(table_meds_merge_eligible) > 0) {table_eligibility$eligible_meds_smart <- if(is.na(table_eligibility$eligible_meds_smart)){table_eligibility$eligible_meds_smart <- 1}}
-# if (nrow(table_meds_merge_eligible) > 0) {table_eligibility$eligible_meds_maggic <- if(is.na(table_eligibility$eligible_meds_maggic)){table_eligibility$eligible_meds_maggic <- 1}}
-# if (nrow(table_meds_merge_eligible) > 0) {table_eligibility$eligible_meds_charge <- if(is.na(table_eligibility$eligible_meds_charge)){table_eligibility$eligible_meds_charge <- 1}}
-
-#if (nrow(table_meds_merge_eligible) > 0) {table_eligibility$eligible_meds_charge[is.na(table_eligibility$eligible_meds_charge)] <- 1}
-
-
 ## Can Calc Assessment --------------
 #sex and age are required from patient table
 table_patients$can_calc_patient_chadsvasc <- ifelse(!is.na(table_patients$patient_age) & !is.na(table_patients$patient_gender), 1, 0)
 table_patients$can_calc_patient_smart <- ifelse(!is.na(table_patients$patient_age) & !is.na(table_patients$patient_gender), 1, 0)
 table_patients$can_calc_patient_maggic <- ifelse(!is.na(table_patients$patient_age) & !is.na(table_patients$patient_gender), 1, 0)
-# table_patients$can_calc_patient_charge <- ifelse(!is.na(table_patients$patient_age) & !is.na(table_patients$patient_gender), 1, 0)
-#can_calc, alle necessary observations are available; if patient does not have conditions/medications they are (correctly) missing
 
 # are required data available from observations table
 #group by patient to assess all corresponding observations, if any combination of the observations pertains to required values, the score can be calculated
@@ -712,27 +653,19 @@ table_observations <- table_observations %>%
 table_observations <- table_observations %>%
   group_by(observation_subject) %>%
   mutate(
-    can_calc_observation_cholesterolhdl_smart = ifelse(observation_code %in% LOINC_codes_cholesterol_hdl, 1, 0),
-    can_calc_observation_cholesterol_smart = ifelse(observation_code %in% LOINC_codes_cholesterol_overall, 1, 0),
-    can_calc_observation_bloodpressure_smart = ifelse(observation_code %in% LOINC_codes_bp_sys, 1, 0),
-    can_calc_observations_smart = ifelse((any(observation_code %in% LOINC_codes_cholesterol_hdl | observation_code %in% LOINC_codes_cholesterol_overall)) & any(table_observations$observation_code %in% LOINC_codes_bp_sys), 1, 0)) %>%
+    can_calc_observation_cholesterolhdl_smart = ifelse(!is.na(table_observations$observation_code) & observation_code %in% LOINC_codes_cholesterol_hdl, 1, 0),
+    can_calc_observation_cholesterol_smart = ifelse(!is.na(table_observations$observation_code) & observation_code %in% LOINC_codes_cholesterol_overall, 1, 0),
+    can_calc_observation_bloodpressure_smart = ifelse(!is.na(table_observations$observation_code) & observation_code %in% LOINC_codes_bp_sys, 1, 0),
+    can_calc_observations_smart = ifelse(!is.na(table_observations$observation_code) & (any(observation_code %in% LOINC_codes_cholesterol_hdl | observation_code %in% LOINC_codes_cholesterol_overall)) & any(table_observations$observation_code %in% LOINC_codes_bp_sys), 1, 0)) %>%
   ungroup()
 table_observations <- table_observations %>%
   group_by(observation_subject) %>%
   mutate(
-    can_calc_observations_bloodpressure_maggic = ifelse(observation_code %in% LOINC_codes_bp_sys, 1, 0),
-    can_calc_observations_lvef_maggic = ifelse(observation_code %in% LOINC_codes_lvef, 1, 0),
-    can_calc_observations_creatinine_maggic = ifelse(observation_code %in% LOINC_codes_creatinine, 1, 0),
-    can_calc_observations_maggic = ifelse((any(observation_code %in% LOINC_codes_bp_sys & observation_code %in% LOINC_codes_lvef & observation_code %in% LOINC_codes_creatinine)), 1, 0)) %>%
+    can_calc_observations_bloodpressure_maggic = ifelse(!is.na(table_observations$observation_code) & observation_code %in% LOINC_codes_bp_sys, 1, 0),
+    can_calc_observations_lvef_maggic = ifelse(!is.na(table_observations$observation_code) & observation_code %in% LOINC_codes_lvef, 1, 0),
+    can_calc_observations_creatinine_maggic = ifelse(!is.na(table_observations$observation_code) & observation_code %in% LOINC_codes_creatinine, 1, 0),
+    can_calc_observations_maggic = ifelse(!is.na(table_observations$observation_code) & (any(observation_code %in% LOINC_codes_bp_sys & observation_code %in% LOINC_codes_lvef & observation_code %in% LOINC_codes_creatinine)), 1, 0)) %>%
   ungroup()
-# table_observations <- table_observations %>%
-#   group_by(observation_subject) %>%
-#   mutate(
-#     can_calc_observations_bmi_charge = ifelse(observation_code %in% LOINC_codes_bmi, 1, 0),
-#     can_calc_observations_height_charge = ifelse(observation_code %in% LOINC_codes_height, 1, 0),
-#     can_calc_observations_weight_charge = ifelse(observation_code %in% LOINC_codes_weight, 1, 0),
-#     can_calc_observations_charge = ifelse((any(observation_code %in% LOINC_codes_bmi) | (any(observation_code %in% LOINC_codes_height) & any(observation_code %in% LOINC_codes_weight))), 1, 0)) %>%
-#   ungroup()
 
 
 #conditions and medications are presumed to be not present in the patient if not available in data just give value of 1
@@ -742,10 +675,10 @@ table_conditions$can_calc_conditions_maggic <- 1
 # table_conditions$can_calc_conditions_charge <- 1
 
 #accommodate empty medication tables
-if(nrow(table_meds) == 0) {
-  table_meds$can_calc_meds_chadsvasc <- numeric(0)
-  table_meds$can_calc_meds_smart <- numeric(0)
-  table_meds$can_calc_meds_maggic <- numeric(0)
+if(is_fhir_bundle_empty(bundles_medicationAdministration) == TRUE) {
+  table_meds$can_calc_meds_chadsvasc <- 0
+  table_meds$can_calc_meds_smart <- 0
+  table_meds$can_calc_meds_maggic <- 0
   # table_meds$can_calc_meds_charge <- numeric(0)
 } else {
   table_meds$can_calc_meds_chadsvasc <- 1
@@ -794,7 +727,6 @@ if (nrow(table_meds_merge_can_calc) > 0) {table_meds_merge_can_calc <- aggregate
 
 
 #Create relevant tables for analysis from resource tables
-#@KAI hier sind noch falsche Spalten drin
 table_eligibility_merge <- merge(table_patients_merge_eligibility, table_conditions_merge_eligible, by.x = "patient_identifier", by.y = "condition_subject", all.x = TRUE)
 table_eligibility_merge <- merge(table_eligibility_merge, table_observations_merge_eligible, by.x = "patient_identifier", by.y = "observation_subject", all.x = TRUE)
 table_eligibility_merge <- merge(table_eligibility_merge, table_meds_merge_eligible, by.x = "patient_identifier", by.y = "medicationAdministration_subject", all.x = TRUE)
@@ -802,7 +734,6 @@ table_eligibility_merge <- merge(table_eligibility_merge, table_meds_merge_eligi
 table_can_calc_merge <- merge(table_patients_merge_can_calc, table_conditions_merge_can_calc, by.x = "patient_identifier", by.y = "condition_subject", all.x = TRUE)
 table_can_calc_merge <- merge(table_can_calc_merge, table_observations_merge_can_calc, by.x = "patient_identifier", by.y = "observation_subject", all.x = TRUE)
 table_can_calc_merge <- merge(table_can_calc_merge, table_meds_merge_can_calc, by.x = "patient_identifier", by.y = "medicationAdministration_subject", all.x = TRUE)
-
 
 table_eligibility_can_calc <- merge (table_eligibility_merge, table_can_calc_merge, by = c("patient_identifier", "patient_gender", "patient_birthyear", "patient_age", "condition_cvd", "condition_af", "condition_hf"), all = TRUE)
 
@@ -813,10 +744,6 @@ table_eligibility <- table_eligibility_can_calc %>%
 table_can_calc <- table_eligibility_can_calc %>%
   select(1:4, 13:15, contains("can_calc"))
 
-#if medications were empty, automatically assign 1 to eligibility
-if (nrow(table_meds_merge_eligible) > 0) {table_eligibility$eligible_meds_chadsvasc[is.na(table_eligibility$eligible_meds_chadsvasc)] <- 1}  
-if (nrow(table_meds_merge_eligible) > 0) {table_eligibility$eligible_meds_smart[is.na(table_eligibility$eligible_meds_smart)] <- 1}
-if (nrow(table_meds_merge_eligible) > 0) {table_eligibility$eligible_meds_maggic[is.na(table_eligibility$eligible_meds_maggic)] <- 1}
 
 #where medications are empty/missing, we assume that they are not present, the score can be calculated in either case (however result might not be entirely accurate)
 table_can_calc <- table_can_calc %>%
@@ -850,7 +777,7 @@ table_eligibility_all_criteria <- table_eligibility_can_calc %>%
   group_by(patient_identifier) %>%
   #mutate correct? otherwise remove from analysis
   mutate(across(contains("eligible"), ~ ifelse(any(. == 1), 1, 0))) %>%
-  select(-starts_with("patient")) %>%
+  select(-starts_with("patient"), -patient_identifier) %>%
   ungroup() 
 
 #check availability of any score
