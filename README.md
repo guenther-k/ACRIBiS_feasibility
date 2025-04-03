@@ -13,7 +13,6 @@ Steps
 4. Run the analysis script
 5. Document your environmant and the results in corresponding file in the "Test Logs" Folder
 6. Upload Output and Log Files to https://fex.ukw.de/public/upload-shares/JqcRKDMZtyL4vkerQZCurlHjQ9hSVjT9
-![image](https://github.com/user-attachments/assets/45f276a7-9fc3-4e8d-a684-a403da9ba449)
 
 
 
