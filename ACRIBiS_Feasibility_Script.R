@@ -469,8 +469,8 @@ colnames(table_observations)[colnames(table_observations) == "COMPONENT"] <- "ob
 #remove "Patient/" prefix from subject-column to allow merging of tables, same for medication if necessary
 table_conditions$condition_subject <- sub("Patient/", "", table_conditions$condition_subject) 
 table_observations$observation_subject <- sub("Patient/", "", table_observations$observation_subject)
-table_medicationAdministrations$medicationAdministration_subject <- sub("Patient/", "", table_medicationAdministrations$medicationAdministration_subject) 
-table_medicationAdministrations$medicationAdministration_medication_reference <- sub("Medication/", "", table_medicationAdministrations$medicationAdministration_medication_reference)
+table_meds$medicationAdministration_subject <- sub("Patient/", "", table_medicationAdministrations$medicationAdministration_subject) 
+table_meds$medicationAdministration_medication_reference <- sub("Medication/", "", table_medicationAdministrations$medicationAdministration_medication_reference)
 
 #give out statements after certain chunks to document progress
 write(paste("Data Cleaning was finished at", Sys.time(), "\n"), file = log, append = T)
@@ -550,7 +550,7 @@ table_conditions$eligible_conditions_AF_chadsvasc <- ifelse(table_conditions$con
 table_observations$eligible_observations_chadsvasc <- 1
 #no eligibility criteria regarding observations for chadsvasc
 table_meds$eligible_meds_chadsvasc <- if(is_fhir_bundle_empty(bundles_medicationAdministration) == TRUE) {
-  table_meds$eligible_meds_chadsvasc <- 0
+  table_meds$eligible_meds_chadsvasc <- 99
 } else {
   table_meds$eligible_meds_chadsvasc <- 1
   }
@@ -583,7 +583,7 @@ table_conditions$eligible_conditions_smart <- ifelse(!is.na(table_conditions$con
 table_observations$eligible_observations_smart <- ifelse(!is.na(table_observations$observation_code) & table_observations$observation_code %in% LOINC_code_rankin_scale & table_observations$observation_value_num > 3, 0, 1)
 #if there are no medications, SMART eligibility cannot be determined
 if(is_fhir_bundle_empty(bundles_medicationAdministration) == TRUE) {
-  table_meds$eligible_meds_smart <- 0
+  table_meds$eligible_meds_smart <- 99
 } else {
     table_meds$eligible_meds_smart <- 1
   }
@@ -598,7 +598,7 @@ table_conditions$eligible_conditions_HF_maggic <- ifelse(!is.na(table_conditions
 table_observations$eligible_observations_maggic <- 1
 #no eligibility criteria regarding medications for maggic
 if(is_fhir_bundle_empty(bundles_medicationAdministration) == TRUE) {
-  table_meds$eligible_meds_maggic <- 0
+  table_meds$eligible_meds_maggic <- 99
 } else {
   table_meds$eligible_meds_maggic <- 1
   }
@@ -655,10 +655,10 @@ if(is_fhir_bundle_empty(bundles_medicationAdministration) == TRUE) {
 ## Merge Reosurces -------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 #create tables with selected columns for merge; for tables with multiple entries only use subject_identifer (aggregation for other variables not useful)
-table_patients_merge_eligibility <- table_patients[, c(1:4, grep("eligibile", names(table_patients)))]
-table_conditions_merge_eligibility <- table_conditions[, c(6, 13:15, grep("eligibile", names(table_conditions)))]
-table_observations_merge_eligibility <- table_observations[, c(3, grep("eligibile", names(table_observations)))]
-table_meds_merge_eligibility <- table_meds[, c(3, grep("eligibile", names(table_meds))), drop = FALSE]
+table_patients_merge_eligibility <- table_patients[, c(1:4, grep("eligible", names(table_patients)))]
+table_conditions_merge_eligibility <- table_conditions[, c(6, 13:15, grep("eligible", names(table_conditions)))]
+table_observations_merge_eligibility <- table_observations[, c(3, grep("eligible", names(table_observations)))]
+table_meds_merge_eligibility <- table_meds[, c(3, grep("eligible", names(table_meds))), drop = FALSE]
 
 table_patients_merge_can_calc <- table_patients[, c(1:4, grep("can_calc", names(table_patients)))]
 table_conditions_merge_can_calc <- table_conditions[, c(6, 13:15, grep("can_calc", names(table_conditions)))]
