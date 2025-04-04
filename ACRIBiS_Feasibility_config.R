@@ -6,7 +6,6 @@ diz_url = ""
 #shorthand for site ending with underscore
 diz_short <- "_"
 
-
 #add maximum number of bundles to enable faster run times for testing (e.g. 10 or 20)
 bundle_limit <- Inf
 #load bundles that are already saved, instead of searching for new ones
@@ -27,7 +26,6 @@ password <- NULL #zB "mypassword"
 
 # Alternativ: Token für Bearer Token Authentifizierung
 token <- NULL #zB "mytoken"
-
 
 # SSL peer verification angeschaltet lassen?
 # TRUE = peer verification anschalten, FALSE = peer verification ausschalten 
