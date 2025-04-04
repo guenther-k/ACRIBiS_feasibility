@@ -693,9 +693,9 @@ if (is_fhir_bundle_empty(bundles_medicationAdministration) == FALSE) {table_meds
 
 
 #Create relevant tables for analysis from resource tables
-table_eligibility_merge <- merge(table_patients_merge_eligibility, table_conditions_merge_eligible, by.x = "patient_identifier", by.y = "condition_subject", all.x = TRUE)
-table_eligibility_merge <- merge(table_eligibility_merge, table_observations_merge_eligible, by.x = "patient_identifier", by.y = "observation_subject", all.x = TRUE)
-table_eligibility_merge <- merge(table_eligibility_merge, table_meds_merge_eligible, by.x = "patient_identifier", by.y = "medicationAdministration_subject", all.x = TRUE)
+table_eligibility_merge <- merge(table_patients_merge_eligibility, table_conditions_merge_eligibility, by.x = "patient_identifier", by.y = "condition_subject", all.x = TRUE)
+table_eligibility_merge <- merge(table_eligibility_merge, table_observations_merge_eligibility, by.x = "patient_identifier", by.y = "observation_subject", all.x = TRUE)
+table_eligibility_merge <- merge(table_eligibility_merge, table_meds_merge_eligibility, by.x = "patient_identifier", by.y = "medicationAdministration_subject", all.x = TRUE)
 
 table_can_calc_merge <- merge(table_patients_merge_can_calc, table_conditions_merge_can_calc, by.x = "patient_identifier", by.y = "condition_subject", all.x = TRUE)
 table_can_calc_merge <- merge(table_can_calc_merge, table_observations_merge_can_calc, by.x = "patient_identifier", by.y = "observation_subject", all.x = TRUE)
