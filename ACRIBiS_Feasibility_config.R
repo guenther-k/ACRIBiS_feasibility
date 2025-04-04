@@ -2,7 +2,7 @@
 # Bitte die folgenden Variablen entsprechend der Gegebenheiten vor Ort anpassen!
 
 # z.B. https://mii-agiop-3p.life.uni-leipzig.de/blaze
-diz_url = "https://mii-agiop-3p.life.uni-leipzig.de/blaze"
+diz_url = ""
 #shorthand for site ending with underscore
 diz_short <- "_"
 
@@ -32,10 +32,3 @@ token <- NULL #zB "mytoken"
 # SSL peer verification angeschaltet lassen?
 # TRUE = peer verification anschalten, FALSE = peer verification ausschalten 
 ssl_verify_peer <- TRUE
-
-# Müssen die Ressourcen nach Consent gefiltert werden?
-# -> Liegen auf dem Server Daten von Patienten mit und ohne Consent gemischt?
-filterConsent <- FALSE # wenn gefiltern werden muss: TRUE
-
-
-
