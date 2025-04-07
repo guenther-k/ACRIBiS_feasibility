@@ -1,7 +1,7 @@
 # About ACRIBiS_feasibility
 
 Currently restricted to cases from 2024 via the encounter resource!
-Please report any issues in the [Zulip Chat] (https://mii.zulipchat.com/#narrow/channel/495070-FDPG-Projekt.3AACRIBiS_Score_Machbarkeit/topic/Allgemeine.20Informationen/with/509667378)
+Please report any issues in the Zulip Chat: https://mii.zulipchat.com/#narrow/channel/495070-FDPG-Projekt.3AACRIBiS_Score_Machbarkeit/topic/Allgemeine.20Informationen/with/509667378
 
 The R-files will enable you to conduct the necessary analysis steps for the ACRIBiS Data Usage Project. Goal of this project is to gain insights into the availability and completeness of data items required for the calculation of cardiovascular risk scores
 In Addition you will need the folder with LOINC-Codes in the directory from which you run the r-scripts
