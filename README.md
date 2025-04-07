@@ -1,3 +1,9 @@
+
+ !!! This repository is defunct, the current repository is available at https://github.com/medizininformatik-initiative/dup-ACRIBiS_feasibility !!!
+
+
+
+
 # About ACRIBiS_feasibility
 
 Currently restricted to cases from 2024 via the encounter resource!
