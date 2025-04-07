@@ -619,6 +619,7 @@ table_observations <- table_observations %>%
 
 table_observations <- table_observations %>%
   mutate(
+    #ggf anpassen
     can_calc_observation_cholesterolhdl_smart = ifelse(!is.na(table_observations$observation_code) & table_observations$observation_code %in% LOINC_codes_cholesterol_hdl, 1, 0),
     can_calc_observation_cholesterol_smart = ifelse(!is.na(table_observations$observation_code) & table_observations$observation_code %in% LOINC_codes_cholesterol_overall, 1, 0),
     can_calc_observation_bloodpressure_smart = ifelse(!is.na(table_observations$observation_code) & table_observations$observation_code %in% LOINC_codes_bp_sys, 1, 0),
@@ -747,7 +748,24 @@ table_eligibility_all_criteria <- table_eligibility_can_calc %>%
   ungroup() 
 
 #check availability of any score
-table_eligibility_can_calc$any_score_eligible <- rowSums(table_eligibility_can_calc[, c("eligible_chadsvasc_overall", "eligible_smart_overall", "eligible_maggic_overall")], na.rm = TRUE) > 0
+#previous code
+#table_eligibility_can_calc$any_score_eligible <- rowSums(table_eligibility_can_calc[, c("eligible_chadsvasc_overall", "eligible_smart_overall", "eligible_maggic_overall")], na.rm = TRUE) > 0
+
+# Apply logic row-wise
+table_eligibility_can_calc$any_score_eligible <- apply(
+  table_eligibility_can_calc[, c("eligible_chadsvasc_overall", "eligible_smart_overall", "eligible_maggic_overall")],
+  1,
+  function(row) {
+    if (all(is.na(row))) {
+      return(NA)
+    } else if (any(row == 1, na.rm = TRUE)) {
+      return(1)
+    } else {
+      return(0)
+    }
+  }
+)
+
 
 
 # ability of calculating scores (all parameters that need to be available, are available), absence of parameters is interpreted as not present in patient
@@ -767,7 +785,26 @@ table_eligibility_can_calc$can_calc_maggic_overall <- apply(table_eligibility_ca
 #table_can_calc$can_calc_charge_overall <- apply(table_can_calc[,can_calc_available_columns_charge], 1, function(x) ifelse(any(x == 0), 0, ifelse(any(is.na(x)), NA, 1)))
 
 #check availability of any score
-table_eligibility_can_calc$any_score_can_calc <- rowSums(table_eligibility_can_calc[, c("can_calc_chadsvasc_overall", "can_calc_smart_overall", "can_calc_maggic_overall")], na.rm = TRUE) > 0
+#previous coding
+#table_eligibility_can_calc$any_score_can_calc <- rowSums(table_eligibility_can_calc[, c("can_calc_chadsvasc_overall", "can_calc_smart_overall", "can_calc_maggic_overall")], na.rm = TRUE) > 0
+
+# Apply logic row-wise
+table_eligibility_can_calc$any_score_can_calc <- apply(
+  table_eligibility_can_calc[, c("can_calc_chadsvasc_overall", "can_calc_smart_overall", "can_calc_maggic_overall")],
+  1,
+  function(row) {
+    if (all(is.na(row))) {
+      return(NA)
+    } else if (any(row == 1, na.rm = TRUE)) {
+      return(1)
+    } else {
+      return(0)
+    }
+  }
+)
+
+
+
 
 #as last step to include all columns
 export_table_can_calc <- table_can_calc %>%
