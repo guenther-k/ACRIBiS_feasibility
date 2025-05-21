@@ -2,10 +2,13 @@
 # Bitte die folgenden Variablen entsprechend der Gegebenheiten vor Ort anpassen!
 
 # z.B. https://mii-agiop-3p.life.uni-leipzig.de/blaze
-diz_url = ""
+diz_url = "https://mii-agiop-3p.life.uni-leipzig.de/blaze"
 #shorthand for site ending with underscore
 diz_short <- "_"
 
+
+#set size of individual fhir requests via loops; number of relevant items will be requested in corresponding increments
+chunk_size <- 100000
 #add maximum number of bundles to enable faster run times for testing (e.g. 10 or 20)
 bundle_limit <- Inf
 #load bundles that are already saved, instead of searching for new ones
@@ -15,7 +18,7 @@ save_bundles <- FALSE
 
 #set count for how many resources can be filled into one bundle response (default most often 50); depends on FHIR-Server Settings
 page_count <- as.character(50)
-#Variable to define whether html elemnts should be removed or kept ("div" removes html, NULL keeps them); might impact RAM usage
+#Variable to define whether html elements should be removed or kept ("div" removes html, NULL keeps them); might impact RAM usage
 rm_tag <- NULL
 
 # Authentifizierung
@@ -26,6 +29,7 @@ password <- NULL #zB "mypassword"
 
 # Alternativ: Token für Bearer Token Authentifizierung
 token <- NULL #zB "mytoken"
+
 
 # SSL peer verification angeschaltet lassen?
 # TRUE = peer verification anschalten, FALSE = peer verification ausschalten 
